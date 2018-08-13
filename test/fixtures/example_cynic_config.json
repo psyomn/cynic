@@ -3,23 +3,26 @@
 	"url": "http://localhost:9001/one",
 	"secs": 10,
 	"contracts": [
-	    "$.Name"
-	]
+	    "$.name"
+	],
+	"message": "something broke, and I need to poke @jonny, as he is in charge of 'one'"
     },
     {
 	"url": "http://localhost:9001/two",
 	"secs": 20,
 	"contracts": [
-	    "$.Name",
-	    "$.Age"
-	]
+	    "$.name",
+	    "$.age"
+	],
+	"message": "something broke, and I need to poke @mary"
     },
     {
 	"url": "http://localhost:9001/flappyerror",
 	"secs": 3,
 	"contracts": [
-	    "$.Name",
-	    "$.Age"
-	]
+	    "$.name",
+	    "$.age"
+	],
+	"message": "something broke, and I need to poke: @mary @john @AARGGHghdude"
     }
 ]

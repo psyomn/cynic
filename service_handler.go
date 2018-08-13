@@ -19,10 +19,13 @@ package cynic
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"reflect"
+	"runtime"
 	"strings"
 	"time"
 
@@ -43,11 +46,30 @@ type Session struct {
 
 // Service is some http service location that should be queried in a
 // specified amount of time. Result is then tested against the given
-// jsonpath contracts.
+// jsonpath, or hook contracts.
+//
+// Hooks: it is possible to assign a hook per service. When the
+// service successfully fires and finishes, the retrieved information
+// will be passed to the hook.
+//
+// The hook can do whatever with said information. User defined things
+// happen in the hook, and the hook returns a structure ready to be
+// encoded into a JSON object, inserted in the sync map, and then
+// served back to the client whenever queried.
+//
+// - A service is an HTTP endpoint
+// - A service can have many:
+//   - jsonpath contracts
+//   - hooks (that can act as contracts)
 type Service struct {
 	URL       url.URL
 	Secs      int
 	Contracts []JSONPathSpec
+	Hooks     []interface{}
+}
+
+type serviceError struct {
+	Error string `json:"error"`
 }
 
 // AddressBook contains all the required services inside a map.
@@ -73,7 +95,13 @@ func AddressBookNew(session Session) AddressBook {
 
 // FromPath adds entries to an AddressBook, given a path that contains
 // json contracts.
-func (s *AddressBook) FromPath(path string) {
+func (s *AddressBook) FromPath(maybePath *string) {
+	if maybePath == nil {
+		log.Print("no config file loaded")
+		return
+	}
+
+	path := *maybePath
 	configs := parseConfig(path)
 
 	for _, entry := range configs {
@@ -93,6 +121,12 @@ func (s *AddressBook) Add(rawurl string, secs int, contracts []string) {
 	ser := makeService(rawurl, secs)
 	ser.Contracts = contracts
 	s.entries[rawurl] = ser
+}
+
+// Get gets a reference to the service with the given rawurl.
+func (s *AddressBook) Get(rawurl string) (*Service, bool) {
+	val, found := s.entries[rawurl]
+	return &val, found
 }
 
 // NumEntries returns the number of entries in the AddressBook
@@ -137,6 +171,25 @@ func (s *AddressBook) RunQueryService(signal chan int) {
 	s.statusServer.Stop()
 }
 
+// AddHook attaches a function hook to the service. If a service
+// name is provided, it will attach the hook to that service, or
+// create a new service with just that hook.
+func (s *AddressBook) AddHook(fn interface{}, rawurl string) {
+	if service, ok := s.entries[rawurl]; ok {
+		service.Hooks = append(service.Hooks, fn)
+		s.entries[rawurl] = service
+	} else {
+		url, err := url.Parse(rawurl)
+		nilOrDie(err, "provided url for hook could not be parsed: ")
+
+		service.URL = *url
+		service.Hooks = append(service.Hooks, fn)
+		service.Secs = 1 // TODO argh
+
+		s.entries[rawurl] = service
+	}
+}
+
 func workerQuery(s Service, t *StatusServer) {
 	address := s.URL.String()
 
@@ -144,14 +197,15 @@ func workerQuery(s Service, t *StatusServer) {
 	if err != nil {
 		message := "problem getting response"
 		nilAndOk(err, message)
-		t.Update(address, message)
+		t.Update(address, serviceError{Error: message})
 		return
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		t.Update(address, "got non 200 code: "+string(resp.StatusCode))
+		buff := fmt.Sprintf("got non 200 code: %d", resp.StatusCode)
+		t.Update(address, serviceError{Error: buff})
 		return
 	}
 
@@ -159,7 +213,7 @@ func workerQuery(s Service, t *StatusServer) {
 	if err != nil {
 		message := "problem reading data from endpoint"
 		nilAndOk(err, message)
-		t.Update(address, message)
+		t.Update(address, serviceError{Error: message})
 		return
 	}
 
@@ -184,20 +238,54 @@ func parseConfig(path string) []Config {
 func makeService(rawurl string, secs int) Service {
 	u, err := url.Parse(rawurl)
 	nilOrDie(err, "invalid http endpoint url")
-	return Service{*u, secs, make([]JSONPathSpec, 0)}
+	return Service{*u, secs, make([]JSONPathSpec, 0), make([]interface{}, 0)}
 }
 
+// TODO need refactoring here
 func applyContracts(s *Service, json *EndpointJSON) map[string]interface{} {
 	results := make(map[string]interface{})
 
-	for _, contract := range s.Contracts {
-		res, err := jsonpath.JsonPathLookup(*json, contract)
+	type result struct {
+		ContractResults interface{}            `json:"contracts"`
+		HookResults     map[string]interface{} `json:"hooks"`
+		Timestamp       int64                  `json:"timestamp"`
+		HumanTime       string                 `json:"human_timestamp"`
+	}
 
-		if err != nil {
+	// apply jsonpath contracts
+	for _, contract := range s.Contracts {
+		if res, err := jsonpath.JsonPathLookup(*json, contract); err != nil {
 			log.Println("problem with jsonpath: ", contract)
 		} else {
-			results[contract] = res
-			log.Println("res: ", res)
+			results[contract] = result{
+				ContractResults: res,
+				HookResults:     nil,
+				Timestamp:       time.Now().Unix(),
+				HumanTime:       time.Now().String(),
+			}
+		}
+	}
+
+	// apply hook contracts
+	for i := 0; i < len(s.Hooks); i++ {
+		hookName := runtime.FuncForPC(reflect.ValueOf(s.Hooks[i]).Pointer()).Name()
+		hookRet := s.Hooks[i].(func(interface{}) interface{})(json) // poetry
+
+		if res, ok := results[s.URL.String()]; ok {
+			tempResult := res.(result)
+			tempResult.HookResults[hookName] = hookRet
+			tempResult.Timestamp = time.Now().Unix()
+
+			results[s.URL.String()] = tempResult
+		} else {
+			m := make(map[string]interface{})
+			m[hookName] = hookRet
+			results[s.URL.String()] = result{
+				ContractResults: nil,
+				HookResults:     m,
+				Timestamp:       time.Now().Unix(),
+				HumanTime:       time.Now().String(),
+			}
 		}
 	}
 

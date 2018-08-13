@@ -62,3 +62,41 @@ $ curl -X GET '0:9999/status'
  "http://localhost:9001/one":{"$.Name":"jon"},
  "http://localhost:9001/two":{"$.Age":[12,13],"$.Name":["jon","mary"]}}
 ```
+
+## Contracts with Hooks
+
+The library is designed to be used easilly with your own personal
+hooks. Yay hooks! Check it out:
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/psyomn/cynic"
+)
+
+func myHook(_ interface{}) interface{} {
+	fmt.Print("the hook just fired! YAYYY\n")
+	// ...
+	return responseStruct
+}
+
+func otherHook(_ interface{}) interface{} {
+	fmt.Print("second hooky thingy\n")
+	return responseStruct
+}
+
+func main() {
+	serviceHooks := make([]cynic.ServiceHooks, 1)
+	hooks := make([]interface{}, 2)
+	hooks[0] = myHook
+	hooks[1] = otherHook
+
+	serviceHooks[0].RawURL = "http://localhost:9001/one"
+	serviceHooks[0].Hooks = hooks
+
+	cynic.StartWithHooks(serviceHooks)
+}
+```

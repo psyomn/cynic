@@ -127,20 +127,21 @@ func countMap(m *sync.Map) int {
 
 func (s *StatusServer) alertLoop() {
 	for range s.alerter.C {
-		if countMap(s.contractResults) > 0 {
-			values := map[string]interface{}{
-				"text":       "I LIVE!",
-				"link_names": 1}
+		if countMap(s.contractResults) == 0 {
+			return
+		}
 
-			jsonValue, _ := json.Marshal(values)
-			_, err := http.Post(*s.slackHook,
-				"application/json",
-				bytes.NewBuffer(jsonValue))
+		values := map[string]interface{}{"text": "I LIVE!", "link_names": 1}
 
-			if err != nil {
-				fmt.Println("UH OH: ", err)
-			}
+		jsonValue, err := json.Marshal(values)
+		if err != nil {
+			log.Print("could not encode response: ", values)
+		}
 
+		header := "application/json"
+		buff := bytes.NewBuffer(jsonValue)
+		if _, err := http.Post(*s.slackHook, header, buff); err != nil {
+			log.Print("could not POST to slack", err)
 		}
 	}
 }
