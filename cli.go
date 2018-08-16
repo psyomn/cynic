@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -67,7 +68,7 @@ func usage() {
 
 func handleLog(logPath string) {
 	if logPath != "" {
-		file, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0640)
+		file, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
 
 		if err != nil {
 			log.Fatal(err)
@@ -128,7 +129,7 @@ func StartWithHooks(givenHooks []ServiceHooks) {
 	addressBook := AddressBookNew(session)
 	addressBook.FromPath(config)
 
-	if len(givenHooks) != 0 { // handle hooks
+	if len(givenHooks) != 0 {
 		log.Print("adding custom hooks to services")
 	}
 
@@ -139,21 +140,98 @@ func StartWithHooks(givenHooks []ServiceHooks) {
 	}
 
 	signal := make(chan int)
-	go func() { addressBook.RunQueryService(signal) }()
+	go func() { addressBook.Run(signal) }()
 
 	for {
 		// TODO might trash this in the future.
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("> ")
+
 		text, err := reader.ReadString('\n')
 
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %s", err)
+			log.Println("error: ", err)
 			continue
-		} else if strings.TrimRight(text, "\n") == "stop" {
-			fmt.Println("sending exit signal...")
-			signal <- StopService
-			return
+		} else {
+			cmd := strings.TrimRight(text, "\n")
+
+			switch cmd {
+			case "stop":
+				log.Println("sending exit signal...")
+				signal <- StopService
+				return
+			case "add service":
+				handleAddService(&addressBook, reader)
+				signal <- AddService
+			case "count":
+				handleCount(&addressBook)
+			case "delete service":
+				handleDeleteService(&addressBook, reader)
+				signal <- DeleteService
+			case "help":
+				fmt.Println("current commands: ")
+				fmt.Println("stop - stop cynic instance")
+				fmt.Println("add service - add a service to cynic")
+				fmt.Println("delete service - delete a service")
+			}
 		}
 	}
+}
+
+func handleAddService(book *AddressBook, reader *bufio.Reader) {
+	log.Println("adding service...")
+
+getURL:
+	fmt.Print("url of service: ")
+	_url, err := reader.ReadString('\n')
+	if err != nil {
+		log.Println(err)
+		goto getURL
+	}
+	url := strings.TrimRight(_url, "\n")
+
+getSecs:
+	fmt.Print("secs of service: ")
+	_secs, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Print(err)
+		goto getSecs
+	}
+
+	secs, err := strconv.Atoi(strings.TrimRight(_secs, "\n"))
+	if err != nil {
+		fmt.Print(err)
+		goto getSecs
+	}
+
+getContract:
+	// Only care for one contract for now
+	fmt.Print("jsonpath contract: ")
+	_contract, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Print(err)
+		goto getContract
+	}
+
+	contract := strings.TrimRight(_contract, "\n")
+	contracts := make([]string, 1)
+	contracts[0] = contract
+	book.AddService(url, secs, contracts)
+}
+
+func handleCount(book *AddressBook) {
+	log.Println("num of entries: ", book.NumEntries())
+}
+
+func handleDeleteService(book *AddressBook, reader *bufio.Reader) {
+	log.Println("deleting service...")
+read:
+	_text, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Print(err)
+		goto read
+	}
+
+	text := strings.TrimRight(_text, "\n")
+	book.DeleteService(text)
 }

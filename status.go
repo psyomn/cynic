@@ -96,6 +96,11 @@ func (s *StatusServer) Update(key string, value interface{}) {
 	s.contractResults.Store(key, value)
 }
 
+// Delete
+func (s *StatusServer) Delete(key string) {
+	s.contractResults.Delete(key)
+}
+
 func (s *StatusServer) makeResponse(w http.ResponseWriter, _ *http.Request) {
 	var tmp map[string]interface{}
 	tmp = make(map[string]interface{})

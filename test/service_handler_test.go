@@ -36,8 +36,8 @@ func makeSession() cynic.Session {
 func TestMakeService(t *testing.T) {
 	services := cynic.AddressBookNew(makeSession())
 
-	services.Add("www.google.com", 60, []string{})
-	services.Add("www.example.com", 12, []string{})
+	services.AddService("www.google.com", 60, []string{})
+	services.AddService("www.example.com", 12, []string{})
 }
 
 func TestNumEntries(t *testing.T) {
@@ -45,13 +45,13 @@ func TestNumEntries(t *testing.T) {
 	Assert(t, services.NumEntries() == 0)
 	Assert(t, services.NumEntries() == 0)
 
-	services.Add("www.google.com", 60, []string{})
+	services.AddService("www.google.com", 60, []string{})
 	Assert(t, services.NumEntries() == 1)
 
-	services.Add("www.example.com", 32, []string{})
+	services.AddService("www.example.com", 32, []string{})
 	Assert(t, services.NumEntries() == 2)
 
-	services.Add("www.google.com", 60, []string{})
+	services.AddService("www.google.com", 60, []string{})
 	Assert(t, services.NumEntries() == 2)
 }
 
@@ -93,7 +93,7 @@ func TestIntegration(t *testing.T) {
 			"$.entries[?(@.val>10)]",
 		}
 
-		services.Add(ts1.URL, 1, jpathContracts)
+		services.AddService(ts1.URL, 1, jpathContracts)
 
 		services.AddHook(func(entry interface{}) interface{} {
 			fmt.Print("ARRRGHHHH world")
@@ -127,15 +127,15 @@ func TestIntegration(t *testing.T) {
 			"$.status.build",
 		}
 
-		services.Add(ts2.URL, 1, jpathContracts)
+		services.AddService(ts2.URL, 1, jpathContracts)
 	}
 
 	{ // test for bad requests/bad server
-		services.Add(ts3.URL, 1, nil)
+		services.AddService(ts3.URL, 1, nil)
 	}
 
 	signal := make(chan int)
-	go func() { services.RunQueryService(signal) }()
+	go func() { services.Run(signal) }()
 
 	// wait until things have been seen at least once
 	for atomic.LoadInt32(&count1) == 0 ||
@@ -153,7 +153,7 @@ func TestIntegration(t *testing.T) {
 func TestHook(t *testing.T) {
 	location := "www.google.com"
 	services := cynic.AddressBookNew(makeSession())
-	services.Add(location, 60, []string{})
+	services.AddService(location, 60, []string{})
 
 	services.AddHook(func(entry interface{}) interface{} {
 		fmt.Print("ARRRGHHHH world")

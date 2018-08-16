@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/oliveagle/jsonpath"
@@ -35,6 +36,12 @@ import (
 const (
 	// StopService is the signal to stop the running querying service
 	StopService = iota
+
+	// AddService adds a service to a running cynic instance
+	AddService = iota
+
+	// DeleteService removes a service from a running cynic instance
+	DeleteService = iota
 )
 
 // Session is the configuration a cynic instance requires to start
@@ -50,7 +57,8 @@ type Session struct {
 //
 // Hooks: it is possible to assign a hook per service. When the
 // service successfully fires and finishes, the retrieved information
-// will be passed to the hook.
+// will be passed to the hook. The hook can do whatever, and should
+// return a encodable JSON structure.
 //
 // The hook can do whatever with said information. User defined things
 // happen in the hook, and the hook returns a structure ready to be
@@ -66,6 +74,8 @@ type Service struct {
 	Secs      int
 	Contracts []JSONPathSpec
 	Hooks     []interface{}
+	ticker    *time.Ticker
+	running   bool
 }
 
 type serviceError struct {
@@ -76,6 +86,7 @@ type serviceError struct {
 type AddressBook struct {
 	entries      map[string]Service
 	statusServer StatusServer
+	Mutex        sync.Mutex
 }
 
 // Config is configuration that can boostrap a cynic instance, in
@@ -90,7 +101,7 @@ type Config struct {
 func AddressBookNew(session Session) AddressBook {
 	entries := make(map[string]Service)
 	statusServer := StatusServerNew(session.StatusPort, session.SlackHook)
-	return AddressBook{entries, statusServer}
+	return AddressBook{entries, statusServer, sync.Mutex{}}
 }
 
 // FromPath adds entries to an AddressBook, given a path that contains
@@ -112,15 +123,17 @@ func (s *AddressBook) FromPath(maybePath *string) {
 			contracts = append(contracts, contract)
 		}
 
-		s.Add(entry.URL, entry.Secs, contracts[:])
+		s.AddService(entry.URL, entry.Secs, contracts[:])
 	}
 }
 
-// Add adds a service by a configuration triad
-func (s *AddressBook) Add(rawurl string, secs int, contracts []string) {
+// AddService adds a service by a configuration triad
+func (s *AddressBook) AddService(rawurl string, secs int, contracts []string) {
+	s.Mutex.Lock()
 	ser := makeService(rawurl, secs)
 	ser.Contracts = contracts
 	s.entries[rawurl] = ser
+	s.Mutex.Unlock()
 }
 
 // Get gets a reference to the service with the given rawurl.
@@ -134,40 +147,37 @@ func (s *AddressBook) NumEntries() int {
 	return len(s.entries)
 }
 
-// RunQueryService will run the address book against given services
-func (s *AddressBook) RunQueryService(signal chan int) {
+// Run will run the address book against given services
+func (s *AddressBook) Run(signal chan int) {
 	log.Println("starting the query service")
-
-	tickers := make([]*time.Ticker, 0)
-
-	for _, service := range s.entries {
-		// TODO this needs improvements
-		ticker := time.NewTicker(time.Duration(service.Secs) * time.Second)
-		tickers = append(tickers, ticker)
-
-		go func(service Service, status *StatusServer) {
-			for range ticker.C {
-				workerQuery(service, status)
-			}
-		}(service, &s.statusServer)
-	}
+	s.startTickers()
 
 	go func() { s.statusServer.Start() }()
 
+commands:
 	for {
 		code := <-signal
-		log.Print("received stop signal")
-		if code != StopService {
-			log.Print("StopService signal only currently supported")
-		} else {
-			break
+
+		// TODO going to leave some of the signals here for now, but will
+		// probably remove them in the future
+		switch code {
+		case StopService:
+			log.Print("received stop signal")
+			break commands
+		case AddService:
+			log.Printf("adding service")
+			// Go over anything that has not been started already
+			s.startTickers()
+		case DeleteService:
+			log.Printf("removing service")
+			// Remove from synced map since we only insert things
+			// in the sync map (and deletes would not be updated)
+		default:
+			log.Printf("signal not supported: %d", code)
 		}
 	}
 
-	for _, ticker := range tickers {
-		ticker.Stop()
-	}
-
+	s.stopTickers()
 	s.statusServer.Stop()
 }
 
@@ -175,6 +185,7 @@ func (s *AddressBook) RunQueryService(signal chan int) {
 // name is provided, it will attach the hook to that service, or
 // create a new service with just that hook.
 func (s *AddressBook) AddHook(fn interface{}, rawurl string) {
+	s.Mutex.Lock()
 	if service, ok := s.entries[rawurl]; ok {
 		service.Hooks = append(service.Hooks, fn)
 		s.entries[rawurl] = service
@@ -188,8 +199,46 @@ func (s *AddressBook) AddHook(fn interface{}, rawurl string) {
 
 		s.entries[rawurl] = service
 	}
+	s.Mutex.Unlock()
 }
 
+// DeleteService removes a service completely from an address book
+func (s *AddressBook) DeleteService(rawurl string) {
+	s.Mutex.Lock()
+	if service, ok := s.entries[rawurl]; ok {
+		service.ticker.Stop()
+		delete(s.entries, rawurl)
+	} else {
+		log.Print("no such entry to delete", rawurl)
+	}
+	s.Mutex.Unlock()
+
+	s.statusServer.Delete(rawurl)
+}
+
+/* Private */
+
+func (s *AddressBook) startTickers() {
+	for _, service := range s.entries {
+		if !service.running {
+			go func(service Service, status *StatusServer) {
+				for range service.ticker.C {
+					workerQuery(service, status)
+				}
+			}(service, &s.statusServer)
+
+			service.running = true
+		}
+	}
+}
+
+func (s *AddressBook) stopTickers() {
+	for _, service := range s.entries {
+		service.ticker.Stop()
+	}
+}
+
+// TODO this could probably be a object method instead...
 func workerQuery(s Service, t *StatusServer) {
 	address := s.URL.String()
 
@@ -238,7 +287,10 @@ func parseConfig(path string) []Config {
 func makeService(rawurl string, secs int) Service {
 	u, err := url.Parse(rawurl)
 	nilOrDie(err, "invalid http endpoint url")
-	return Service{*u, secs, make([]JSONPathSpec, 0), make([]interface{}, 0)}
+	ticker := time.NewTicker(time.Duration(secs) * time.Second)
+	jsonPathContracts := make([]JSONPathSpec, 0)
+	hooks := make([]interface{}, 0)
+	return Service{*u, secs, jsonPathContracts, hooks, ticker, false}
 }
 
 // TODO need refactoring here
@@ -249,19 +301,19 @@ func applyContracts(s *Service, json *EndpointJSON) map[string]interface{} {
 		ContractResults interface{}            `json:"contracts"`
 		HookResults     map[string]interface{} `json:"hooks"`
 		Timestamp       int64                  `json:"timestamp"`
-		HumanTime       string                 `json:"human_timestamp"`
+		HumanTime       string                 `json:"human_time"`
 	}
 
 	// apply jsonpath contracts
 	for _, contract := range s.Contracts {
 		if res, err := jsonpath.JsonPathLookup(*json, contract); err != nil {
-			log.Println("problem with jsonpath: ", contract)
+			log.Println("problem with jsonpath: ", contract, ": ", err)
 		} else {
 			results[contract] = result{
 				ContractResults: res,
 				HookResults:     nil,
 				Timestamp:       time.Now().Unix(),
-				HumanTime:       time.Now().String(),
+				HumanTime:       time.Now().Format(time.RFC850),
 			}
 		}
 	}
@@ -271,20 +323,21 @@ func applyContracts(s *Service, json *EndpointJSON) map[string]interface{} {
 		hookName := runtime.FuncForPC(reflect.ValueOf(s.Hooks[i]).Pointer()).Name()
 		hookRet := s.Hooks[i].(func(interface{}) interface{})(json) // poetry
 
-		if res, ok := results[s.URL.String()]; ok {
+		if res, ok := results[hookName]; ok {
 			tempResult := res.(result)
 			tempResult.HookResults[hookName] = hookRet
 			tempResult.Timestamp = time.Now().Unix()
 
-			results[s.URL.String()] = tempResult
+			results[hookName] = tempResult
 		} else {
 			m := make(map[string]interface{})
 			m[hookName] = hookRet
-			results[s.URL.String()] = result{
+
+			results[hookName] = result{
 				ContractResults: nil,
 				HookResults:     m,
 				Timestamp:       time.Now().Unix(),
-				HumanTime:       time.Now().String(),
+				HumanTime:       time.Now().Format(time.RFC850),
 			}
 		}
 	}
