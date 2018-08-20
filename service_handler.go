@@ -47,8 +47,10 @@ const (
 // Session is the configuration a cynic instance requires to start
 // running and working
 type Session struct {
+	Config     *string
 	StatusPort string
 	SlackHook  *string
+	Hooks      ServiceHooks
 }
 
 // Service is some http service location that should be queried in a
@@ -78,6 +80,13 @@ type Service struct {
 	running   bool
 }
 
+// ServiceHooks are the hooks you may want to provide
+type ServiceHooks struct {
+	RawURL string
+	Hooks  []interface{}
+	Secs   int
+}
+
 type serviceError struct {
 	Error string `json:"error"`
 }
@@ -95,6 +104,51 @@ type Config struct {
 	URL       string   `json:"url"`
 	Secs      int      `json:"secs"`
 	Contracts []string `json:"contracts"`
+}
+
+// StartWithHooks starts a cynic instance, with any provided hooks.
+func Start(session Session) {
+	addressBook := AddressBookNew(session)
+
+	// TODO trash this? need a better way to do things...
+	addressBook.FromPath(session.Config)
+
+	if len(session.Hooks.Hooks) != 0 {
+		log.Print("adding custom hooks to services")
+	}
+
+	// TODO change Hooks.Hooks to a better name because this is a little silly
+	for _, entry := range session.Hooks.Hooks {
+		for _, hook := range entry.Hooks {
+			// TODO fix time here
+			addressBook.AddHook(hook, entry.RawURL, 1)
+		}
+	}
+
+	signal := make(chan int)
+	go func() { addressBook.Run(signal) }()
+
+	for {
+		switch {
+		case "stop":
+			log.Println("sending exit signal...")
+			signal <- StopService
+			return
+		case "add service":
+			handleAddService(&addressBook, reader)
+			signal <- AddService
+		case "count":
+			handleCount(&addressBook)
+		case "delete service":
+			handleDeleteService(&addressBook, reader)
+			signal <- DeleteService
+		case "help":
+			fmt.Println("current commands: ")
+			fmt.Println("stop - stop cynic instance")
+			fmt.Println("add service - add a service to cynic")
+			fmt.Println("delete service - delete a service")
+		}
+	}
 }
 
 // AddressBookNew creates a new address book
@@ -130,7 +184,7 @@ func (s *AddressBook) FromPath(maybePath *string) {
 // AddService adds a service by a configuration triad
 func (s *AddressBook) AddService(rawurl string, secs int, contracts []string) {
 	s.Mutex.Lock()
-	ser := makeService(rawurl, secs)
+	ser := ServiceNew(rawurl, secs)
 	ser.Contracts = contracts
 	s.entries[rawurl] = ser
 	s.Mutex.Unlock()
@@ -184,7 +238,7 @@ commands:
 // AddHook attaches a function hook to the service. If a service
 // name is provided, it will attach the hook to that service, or
 // create a new service with just that hook.
-func (s *AddressBook) AddHook(fn interface{}, rawurl string) {
+func (s *AddressBook) AddHook(fn interface{}, rawurl string, secs int) {
 	s.Mutex.Lock()
 	if service, ok := s.entries[rawurl]; ok {
 		service.Hooks = append(service.Hooks, fn)
@@ -195,7 +249,7 @@ func (s *AddressBook) AddHook(fn interface{}, rawurl string) {
 
 		service.URL = *url
 		service.Hooks = append(service.Hooks, fn)
-		service.Secs = 1 // TODO argh
+		service.Secs = secs
 
 		s.entries[rawurl] = service
 	}
@@ -223,7 +277,7 @@ func (s *AddressBook) startTickers() {
 		if !service.running {
 			go func(service Service, status *StatusServer) {
 				for range service.ticker.C {
-					workerQuery(service, status)
+					workerQuery(s, service, status)
 				}
 			}(service, &s.statusServer)
 
@@ -239,7 +293,7 @@ func (s *AddressBook) stopTickers() {
 }
 
 // TODO this could probably be a object method instead...
-func workerQuery(s Service, t *StatusServer) {
+func workerQuery(addressBook *AddressBook, s Service, t *StatusServer) {
 	address := s.URL.String()
 
 	resp, err := http.Get(address)
@@ -267,7 +321,7 @@ func workerQuery(s Service, t *StatusServer) {
 	}
 
 	var json EndpointJSON = ParseEndpointJSON(body[:])
-	results := applyContracts(&s, &json)
+	results := applyContracts(addressBook, &s, &json)
 	t.Update(address, results)
 }
 
@@ -284,7 +338,7 @@ func parseConfig(path string) []Config {
 	return configs
 }
 
-func makeService(rawurl string, secs int) Service {
+func ServiceNew(rawurl string, secs int) Service {
 	u, err := url.Parse(rawurl)
 	nilOrDie(err, "invalid http endpoint url")
 	ticker := time.NewTicker(time.Duration(secs) * time.Second)
@@ -294,7 +348,7 @@ func makeService(rawurl string, secs int) Service {
 }
 
 // TODO need refactoring here
-func applyContracts(s *Service, json *EndpointJSON) map[string]interface{} {
+func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) map[string]interface{} {
 	results := make(map[string]interface{})
 
 	type result struct {
@@ -321,7 +375,7 @@ func applyContracts(s *Service, json *EndpointJSON) map[string]interface{} {
 	// apply hook contracts
 	for i := 0; i < len(s.Hooks); i++ {
 		hookName := runtime.FuncForPC(reflect.ValueOf(s.Hooks[i]).Pointer()).Name()
-		hookRet := s.Hooks[i].(func(interface{}) interface{})(json) // poetry
+		hookRet := s.Hooks[i].(func(*AddressBook, interface{}) interface{})(addressBook, json) // poetry
 
 		if res, ok := results[hookName]; ok {
 			tempResult := res.(result)

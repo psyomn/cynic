@@ -95,23 +95,23 @@ func TestIntegration(t *testing.T) {
 
 		services.AddService(ts1.URL, 1, jpathContracts)
 
-		services.AddHook(func(entry interface{}) interface{} {
+		services.AddHook(func(_ *cynic.AddressBook, entry interface{}) interface{} {
 			fmt.Print("ARRRGHHHH world")
 			atomic.AddInt32(&hcnt1, 1)
 			return 42
-		}, ts1.URL)
+		}, ts1.URL, 1)
 
-		services.AddHook(func(entry interface{}) interface{} {
+		services.AddHook(func(_ *cynic.AddressBook, entry interface{}) interface{} {
 			fmt.Print("Muaahhahahahahahaha")
 			atomic.AddInt32(&hcnt2, 1)
 			return 42
-		}, ts1.URL)
+		}, ts1.URL, 1)
 
-		services.AddHook(func(entry interface{}) interface{} {
+		services.AddHook(func(_ *cynic.AddressBook, entry interface{}) interface{} {
 			fmt.Print("BY THE POWER OF GREYSKULL")
 			atomic.AddInt32(&hcnt3, 1)
 			return 42
-		}, ts1.URL)
+		}, ts1.URL, 1)
 
 		service, ok := services.Get(ts1.URL)
 		if !ok {
@@ -158,5 +158,5 @@ func TestHook(t *testing.T) {
 	services.AddHook(func(entry interface{}) interface{} {
 		fmt.Print("ARRRGHHHH world")
 		return 42
-	}, location)
+	}, location, 1)
 }

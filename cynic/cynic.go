@@ -16,9 +16,172 @@ limitations under the License.
 package main
 
 import (
+	"bufio"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/psyomn/cynic"
 )
 
+var (
+	configFile  string
+	config      *string
+	statusPort  = cynic.StatusPort
+	slackHook   string
+	sh          *string
+	emailAlerts = false
+	version     = false
+	help        = false
+	logPath     string
+)
+
+func initFlag() {
+	// General
+	flag.StringVar(&configFile, "config", configFile, "cynic config location")
+	flag.StringVar(&statusPort, "status-port", statusPort, "http status server port")
+	flag.StringVar(&logPath, "log", logPath, "path to log file")
+
+	// Alerts
+	flag.StringVar(&slackHook, "slack-hook", slackHook, "set slack hook url")
+	flag.BoolVar(&emailAlerts, "email-alerts", emailAlerts, "enable email alerts")
+
+	// Misc
+	flag.BoolVar(&version, "v", version, "print the version")
+	flag.BoolVar(&help, "h", help, "print this menu")
+}
+
+func printVersion() {
+	fmt.Fprintf(os.Stderr, "cynic %s\n", cynic.VERSION)
+}
+
+func usage() {
+	flag.Usage()
+}
+
+func handleLog(logPath string) {
+	if logPath != "" {
+		file, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.SetOutput(file)
+	}
+}
+
+func handleSlackHook(slackHook string) *string {
+	var sh *string
+	if slackHook == "" {
+		sh = nil
+	} else {
+		sh = &slackHook
+	}
+	log.Print("slack hook: ", slackHook)
+	return sh
+}
+
+func handleConfig(configFile string) *string {
+	var conf *string
+	if configFile == "" {
+		conf = nil
+		log.Print("no config loaded")
+	} else {
+		conf = &configFile
+		log.Print("config: ", configFile)
+	}
+	return conf
+}
+
+func handleAddService(book *cynic.AddressBook, reader *bufio.Reader) {
+	log.Println("adding service...")
+getURL:
+	fmt.Print("url of service: ")
+	_url, err := reader.ReadString('\n')
+	if err != nil {
+		log.Println(err)
+		goto getURL
+	}
+	url := strings.TrimRight(_url, "\n")
+
+getSecs:
+	fmt.Print("secs of service: ")
+	_secs, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Print(err)
+		goto getSecs
+	}
+
+	secs, err := strconv.Atoi(strings.TrimRight(_secs, "\n"))
+	if err != nil {
+		fmt.Print(err)
+		goto getSecs
+	}
+
+getContract:
+	// Only care for one contract for now
+	fmt.Print("jsonpath contract: ")
+	_contract, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Print(err)
+		goto getContract
+	}
+
+	contract := strings.TrimRight(_contract, "\n")
+	contracts := make([]string, 1)
+	contracts[0] = contract
+	book.AddService(url, secs, contracts)
+}
+
+func handleCount(book *cynic.AddressBook) {
+	log.Println("num of entries: ", book.NumEntries())
+}
+
+func handleDeleteService(book *cynic.AddressBook, reader *bufio.Reader) {
+	log.Println("deleting service...")
+read:
+	_text, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Print(err)
+		goto read
+	}
+
+	text := strings.TrimRight(_text, "\n")
+	book.DeleteService(text)
+}
+
 func main() {
-	cynic.StartWithHooks(nil)
+	// config
+	initFlag()
+	flag.Parse()
+
+	if version {
+		printVersion()
+		os.Exit(1)
+	}
+
+	if help {
+		usage()
+		os.Exit(1)
+	}
+
+	handleLog(logPath)
+
+	config = handleConfig(configFile)
+	sh = handleSlackHook(slackHook)
+
+	log.Printf("status-port: %s\n", statusPort)
+
+	session := cynic.Session{
+		Config:     config,
+		StatusPort: statusPort,
+		SlackHook:  sh,
+		Hooks:      nil,
+	}
+
+	cynic.Start(session)
 }
