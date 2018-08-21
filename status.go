@@ -96,7 +96,7 @@ func (s *StatusServer) Update(key string, value interface{}) {
 	s.contractResults.Store(key, value)
 }
 
-// Delete
+// Delete removes an entry from the sync map
 func (s *StatusServer) Delete(key string) {
 	s.contractResults.Delete(key)
 }

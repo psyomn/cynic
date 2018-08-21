@@ -16,13 +16,10 @@ limitations under the License.
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 
 	"github.com/psyomn/cynic"
 )
@@ -63,26 +60,16 @@ func usage() {
 }
 
 func handleLog(logPath string) {
-	if logPath != "" {
-		file, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		log.SetOutput(file)
+	if logPath == "" {
+		return
 	}
-}
 
-func handleSlackHook(slackHook string) *string {
-	var sh *string
-	if slackHook == "" {
-		sh = nil
-	} else {
-		sh = &slackHook
+	file, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		log.Fatal(err)
 	}
-	log.Print("slack hook: ", slackHook)
-	return sh
+
+	log.SetOutput(file)
 }
 
 func handleConfig(configFile string) *string {
@@ -97,61 +84,15 @@ func handleConfig(configFile string) *string {
 	return conf
 }
 
-func handleAddService(book *cynic.AddressBook, reader *bufio.Reader) {
-	log.Println("adding service...")
-getURL:
-	fmt.Print("url of service: ")
-	_url, err := reader.ReadString('\n')
-	if err != nil {
-		log.Println(err)
-		goto getURL
+func handleSlackHook(slackHook string) *string {
+	var sh *string
+	if slackHook == "" {
+		sh = nil
+	} else {
+		sh = &slackHook
 	}
-	url := strings.TrimRight(_url, "\n")
-
-getSecs:
-	fmt.Print("secs of service: ")
-	_secs, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Print(err)
-		goto getSecs
-	}
-
-	secs, err := strconv.Atoi(strings.TrimRight(_secs, "\n"))
-	if err != nil {
-		fmt.Print(err)
-		goto getSecs
-	}
-
-getContract:
-	// Only care for one contract for now
-	fmt.Print("jsonpath contract: ")
-	_contract, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Print(err)
-		goto getContract
-	}
-
-	contract := strings.TrimRight(_contract, "\n")
-	contracts := make([]string, 1)
-	contracts[0] = contract
-	book.AddService(url, secs, contracts)
-}
-
-func handleCount(book *cynic.AddressBook) {
-	log.Println("num of entries: ", book.NumEntries())
-}
-
-func handleDeleteService(book *cynic.AddressBook, reader *bufio.Reader) {
-	log.Println("deleting service...")
-read:
-	_text, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Print(err)
-		goto read
-	}
-
-	text := strings.TrimRight(_text, "\n")
-	book.DeleteService(text)
+	log.Print("slack hook: ", slackHook)
+	return sh
 }
 
 func main() {

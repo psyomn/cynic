@@ -50,7 +50,7 @@ type Session struct {
 	Config     *string
 	StatusPort string
 	SlackHook  *string
-	Hooks      ServiceHooks
+	Hooks      []ServiceHooks
 }
 
 // Service is some http service location that should be queried in a
@@ -95,7 +95,7 @@ type serviceError struct {
 type AddressBook struct {
 	entries      map[string]Service
 	statusServer StatusServer
-	Mutex        sync.Mutex
+	Mutex        *sync.Mutex
 }
 
 // Config is configuration that can boostrap a cynic instance, in
@@ -106,61 +106,36 @@ type Config struct {
 	Contracts []string `json:"contracts"`
 }
 
-// StartWithHooks starts a cynic instance, with any provided hooks.
+// Start starts a cynic instance, with any provided hooks.
 func Start(session Session) {
 	addressBook := AddressBookNew(session)
 
-	// TODO trash this? need a better way to do things...
-	addressBook.FromPath(session.Config)
-
-	if len(session.Hooks.Hooks) != 0 {
+	if len(session.Hooks) != 0 {
 		log.Print("adding custom hooks to services")
 	}
 
 	// TODO change Hooks.Hooks to a better name because this is a little silly
-	for _, entry := range session.Hooks.Hooks {
+	for _, entry := range session.Hooks {
 		for _, hook := range entry.Hooks {
-			// TODO fix time here
-			addressBook.AddHook(hook, entry.RawURL, 1)
+			addressBook.AddHook(hook, entry.RawURL, entry.Secs)
 		}
 	}
 
 	signal := make(chan int)
-	go func() { addressBook.Run(signal) }()
-
-	for {
-		switch {
-		case "stop":
-			log.Println("sending exit signal...")
-			signal <- StopService
-			return
-		case "add service":
-			handleAddService(&addressBook, reader)
-			signal <- AddService
-		case "count":
-			handleCount(&addressBook)
-		case "delete service":
-			handleDeleteService(&addressBook, reader)
-			signal <- DeleteService
-		case "help":
-			fmt.Println("current commands: ")
-			fmt.Println("stop - stop cynic instance")
-			fmt.Println("add service - add a service to cynic")
-			fmt.Println("delete service - delete a service")
-		}
-	}
+	addressBook.Run(signal)
 }
 
 // AddressBookNew creates a new address book
 func AddressBookNew(session Session) AddressBook {
 	entries := make(map[string]Service)
 	statusServer := StatusServerNew(session.StatusPort, session.SlackHook)
-	return AddressBook{entries, statusServer, sync.Mutex{}}
+	// TODO trash this? need a better way to do things..
+	addressBook := AddressBook{entries, statusServer, &sync.Mutex{}}
+	addressBook.fromPath(session.Config)
+	return addressBook
 }
 
-// FromPath adds entries to an AddressBook, given a path that contains
-// json contracts.
-func (s *AddressBook) FromPath(maybePath *string) {
+func (s *AddressBook) fromPath(maybePath *string) {
 	if maybePath == nil {
 		log.Print("no config file loaded")
 		return
@@ -171,7 +146,8 @@ func (s *AddressBook) FromPath(maybePath *string) {
 
 	for _, entry := range configs {
 		contracts := make([]string, 0)
-		log.Printf("loaded service query %s, with %d contract(s)", entry.URL, len(entry.Contracts))
+		log.Printf("loaded service query %s, with %d contract(s)",
+			entry.URL, len(entry.Contracts))
 
 		for _, contract := range entry.Contracts {
 			contracts = append(contracts, contract)
@@ -204,7 +180,7 @@ func (s *AddressBook) NumEntries() int {
 // Run will run the address book against given services
 func (s *AddressBook) Run(signal chan int) {
 	log.Println("starting the query service")
-	s.startTickers()
+	s.StartTickers()
 
 	go func() { s.statusServer.Start() }()
 
@@ -221,7 +197,7 @@ commands:
 		case AddService:
 			log.Printf("adding service")
 			// Go over anything that has not been started already
-			s.startTickers()
+			s.StartTickers()
 		case DeleteService:
 			log.Printf("removing service")
 			// Remove from synced map since we only insert things
@@ -246,17 +222,15 @@ func (s *AddressBook) AddHook(fn interface{}, rawurl string, secs int) {
 	} else {
 		url, err := url.Parse(rawurl)
 		nilOrDie(err, "provided url for hook could not be parsed: ")
-
-		service.URL = *url
+		service := ServiceNew(url.String(), secs)
 		service.Hooks = append(service.Hooks, fn)
-		service.Secs = secs
-
 		s.entries[rawurl] = service
 	}
 	s.Mutex.Unlock()
 }
 
-// DeleteService removes a service completely from an address book
+// DeleteService removes a service completely from an address book. It
+// is OK to pass non-existant rawurls to delete.
 func (s *AddressBook) DeleteService(rawurl string) {
 	s.Mutex.Lock()
 	if service, ok := s.entries[rawurl]; ok {
@@ -271,8 +245,9 @@ func (s *AddressBook) DeleteService(rawurl string) {
 }
 
 /* Private */
-
-func (s *AddressBook) startTickers() {
+// StartTickers TODO FIXME
+func (s *AddressBook) StartTickers() {
+	s.Mutex.Lock()
 	for _, service := range s.entries {
 		if !service.running {
 			go func(service Service, status *StatusServer) {
@@ -284,6 +259,7 @@ func (s *AddressBook) startTickers() {
 			service.running = true
 		}
 	}
+	s.Mutex.Unlock()
 }
 
 func (s *AddressBook) stopTickers() {
@@ -338,6 +314,7 @@ func parseConfig(path string) []Config {
 	return configs
 }
 
+// ServiceNew creates a new service instance
 func ServiceNew(rawurl string, secs int) Service {
 	u, err := url.Parse(rawurl)
 	nilOrDie(err, "invalid http endpoint url")
