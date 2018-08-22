@@ -396,7 +396,7 @@ func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) ma
 	// apply hook contracts
 	for i := 0; i < len(s.Hooks); i++ {
 		hookName := runtime.FuncForPC(reflect.ValueOf(s.Hooks[i]).Pointer()).Name()
-		hookRet := s.Hooks[i].(func(*AddressBook, interface{}) interface{})(addressBook, json) // poetry
+		hookRet := s.Hooks[i].(func(*AddressBook, interface{}) interface{})(addressBook, *json) // poetry
 
 		if res, ok := results[hookName]; ok {
 			tempResult := res.(result)
