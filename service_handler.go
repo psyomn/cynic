@@ -82,6 +82,7 @@ type Service struct {
 }
 
 // ServiceHooks are the hooks you may want to provide.
+// TODO this should be removed
 type ServiceHooks struct {
 	RawURL string
 	Hooks  []interface{}
@@ -272,7 +273,6 @@ func (s *AddressBook) StartTickers() {
 
 		service.running = true
 		go func(service Service, status *StatusServer) {
-
 			for {
 				select {
 				case <-service.ticker.C:
@@ -280,7 +280,6 @@ func (s *AddressBook) StartTickers() {
 				case <-service.tickerChan:
 					return
 				}
-
 			}
 		}(service, &s.statusServer)
 	}
@@ -361,9 +360,8 @@ func ServiceNew(rawurl string, secs int) Service {
 }
 
 // Stop service will stop the ticker, and gracefully exit it.
-func (s *Service) Stop() {
+func (s Service) Stop() {
 	s.ticker.Stop()
-	// force goroutine exit
 	s.tickerChan <- 0
 	close(s.tickerChan)
 }
