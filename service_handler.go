@@ -72,15 +72,16 @@ type Session struct {
 //   - jsonpath contracts
 //   - hooks (that can act as contracts)
 type Service struct {
-	URL       url.URL
-	Secs      int
-	Contracts []JSONPathSpec
-	Hooks     []interface{}
-	ticker    *time.Ticker
-	running   bool
+	URL        url.URL
+	Secs       int
+	Contracts  []JSONPathSpec
+	Hooks      []interface{}
+	ticker     *time.Ticker
+	running    bool
+	tickerChan chan int
 }
 
-// ServiceHooks are the hooks you may want to provide
+// ServiceHooks are the hooks you may want to provide.
 type ServiceHooks struct {
 	RawURL string
 	Hooks  []interface{}
@@ -160,9 +161,17 @@ func (s *AddressBook) fromPath(maybePath *string) {
 // AddService adds a service by a configuration triad
 func (s *AddressBook) AddService(rawurl string, secs int, contracts []string) {
 	s.Mutex.Lock()
+
+	if entry, ok := s.entries[rawurl]; ok {
+		if entry.running {
+			entry.Stop()
+		}
+	}
+
 	ser := ServiceNew(rawurl, secs)
 	ser.Contracts = contracts
 	s.entries[rawurl] = ser
+
 	s.Mutex.Unlock()
 }
 
@@ -175,6 +184,12 @@ func (s *AddressBook) Get(rawurl string) (*Service, bool) {
 // NumEntries returns the number of entries in the AddressBook
 func (s *AddressBook) NumEntries() int {
 	return len(s.entries)
+}
+
+// Contains checks to see if a url is contained in the service list
+func (s *AddressBook) Contains(rawurl string) bool {
+	_, ok := s.entries[rawurl]
+	return ok
 }
 
 // Run will run the address book against given services
@@ -234,7 +249,7 @@ func (s *AddressBook) AddHook(fn interface{}, rawurl string, secs int) {
 func (s *AddressBook) DeleteService(rawurl string) {
 	s.Mutex.Lock()
 	if service, ok := s.entries[rawurl]; ok {
-		service.ticker.Stop()
+		service.Stop()
 		delete(s.entries, rawurl)
 	} else {
 		log.Print("no such entry to delete", rawurl)
@@ -249,23 +264,35 @@ func (s *AddressBook) DeleteService(rawurl string) {
 func (s *AddressBook) StartTickers() {
 	s.Mutex.Lock()
 	for _, service := range s.entries {
-		if !service.running {
-			go func(service Service, status *StatusServer) {
-				for range service.ticker.C {
-					workerQuery(s, service, status)
-				}
-			}(service, &s.statusServer)
-
-			service.running = true
+		if service.running {
+			continue
 		}
+
+		log.Print(service.URL, " is not started, starting.")
+
+		service.running = true
+		go func(service Service, status *StatusServer) {
+
+			for {
+				select {
+				case <-service.ticker.C:
+					workerQuery(s, service, status)
+				case <-service.tickerChan:
+					return
+				}
+
+			}
+		}(service, &s.statusServer)
 	}
 	s.Mutex.Unlock()
 }
 
 func (s *AddressBook) stopTickers() {
+	s.Mutex.Lock()
 	for _, service := range s.entries {
 		service.ticker.Stop()
 	}
+	s.Mutex.Unlock()
 }
 
 // TODO this could probably be a object method instead...
@@ -279,7 +306,6 @@ func workerQuery(addressBook *AddressBook, s Service, t *StatusServer) {
 		t.Update(address, serviceError{Error: message})
 		return
 	}
-
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -321,7 +347,25 @@ func ServiceNew(rawurl string, secs int) Service {
 	ticker := time.NewTicker(time.Duration(secs) * time.Second)
 	jsonPathContracts := make([]JSONPathSpec, 0)
 	hooks := make([]interface{}, 0)
-	return Service{*u, secs, jsonPathContracts, hooks, ticker, false}
+	tchan := make(chan int)
+
+	return Service{
+		*u,
+		secs,
+		jsonPathContracts,
+		hooks,
+		ticker,
+		false,
+		tchan,
+	}
+}
+
+// Stop service will stop the ticker, and gracefully exit it.
+func (s *Service) Stop() {
+	s.ticker.Stop()
+	// force goroutine exit
+	s.tickerChan <- 0
+	close(s.tickerChan)
 }
 
 // TODO need refactoring here
