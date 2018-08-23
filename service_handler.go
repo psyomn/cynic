@@ -43,7 +43,6 @@ const (
 // Session is the configuration a cynic instance requires to start
 // running and working
 type Session struct {
-	Config     *string
 	StatusPort string
 	SlackHook  *string
 	Services   []Service
@@ -68,7 +67,7 @@ type Session struct {
 type Service struct {
 	URL        url.URL
 	Secs       int
-	Hooks      []interface{}
+	hooks      []interface{}
 	ticker     *time.Ticker
 	running    bool
 	tickerChan chan int
@@ -89,26 +88,21 @@ type AddressBook struct {
 // Start starts a cynic instance, with any provided hooks.
 func Start(session Session) {
 	addressBook := AddressBookNew(session)
-
-	for _, service := range session.Services {
-		addressBook.AddService(&service)
-	}
-
 	signal := make(chan int)
 	addressBook.Run(signal)
 }
 
 // AddressBookNew creates a new address book
-func AddressBookNew(session Session) AddressBook {
+func AddressBookNew(session Session) *AddressBook {
 	entries := make(map[string]*Service)
 	statusServer := StatusServerNew(session.StatusPort, session.SlackHook)
 	addressBook := AddressBook{entries, statusServer, &sync.Mutex{}}
 
-	for _, service := range session.Services {
-		addressBook.AddService(&service)
+	for i := 0; i < len(session.Services); i++ {
+		addressBook.AddService(&session.Services[i])
 	}
 
-	return addressBook
+	return &addressBook
 }
 
 // AddService adds a service
@@ -120,7 +114,7 @@ func (s *AddressBook) AddService(service *Service) {
 			entry.Stop()
 		}
 	}
-	s.entries[rawurl] = service
+	s.entries[rawurl] = &*service
 	s.Mutex.Unlock()
 }
 
@@ -144,7 +138,6 @@ func (s *AddressBook) Contains(rawurl string) bool {
 // Run will run the address book against given services
 func (s *AddressBook) Run(signal chan int) {
 	log.Println("starting the query service")
-	fmt.Println("before starting tickers: ", *s)
 	s.StartTickers()
 	go func() { s.statusServer.Start() }()
 
@@ -175,24 +168,6 @@ commands:
 	s.statusServer.Stop()
 }
 
-// AddHook attaches a function hook to the service. If a service
-// name is provided, it will attach the hook to that service, or
-// create a new service with just that hook.
-func (s *AddressBook) AddHookBook(fn interface{}, rawurl string, secs int) {
-	s.Mutex.Lock()
-	if service, ok := s.entries[rawurl]; ok {
-		service.Hooks = append(service.Hooks, fn)
-		s.entries[rawurl] = service
-	} else {
-		url, err := url.Parse(rawurl)
-		nilOrDie(err, "provided url for hook could not be parsed: ")
-		service := ServiceNew(url.String(), secs)
-		service.Hooks = append(service.Hooks, fn)
-		s.entries[rawurl] = &service
-	}
-	s.Mutex.Unlock()
-}
-
 // DeleteService removes a service completely from an address book. It
 // is OK to pass non-existant rawurls to delete.
 func (s *AddressBook) DeleteService(rawurl string) {
@@ -207,23 +182,23 @@ func (s *AddressBook) DeleteService(rawurl string) {
 	s.statusServer.Delete(rawurl)
 }
 
-/* Private */
-// StartTickers TODO FIXME
+// StartTickers starts the tickers on the associated services. This
+// might go away in the future
 func (s *AddressBook) StartTickers() {
 	s.Mutex.Lock()
 	for _, service := range s.entries {
 		if service.running {
+			log.Println("already running: ", service)
 			continue
 		}
 
 		log.Print(service.URL, " is not started, starting.")
-		fmt.Println("%?", service)
 		service.running = true
 		go func(service *Service, status *StatusServer) {
 			for {
 				select {
 				case <-service.ticker.C:
-					workerQuery(s, &*service, status)
+					workerQuery(s, service, status)
 				case <-service.tickerChan:
 					return
 				}
@@ -299,27 +274,33 @@ func (s *Service) Stop() {
 	close(s.tickerChan)
 }
 
+// AddHook appends a hook to the service
 func (s *Service) AddHook(fn interface{}) {
-	s.Hooks = append(s.Hooks, fn)
+	s.hooks = append(s.hooks, fn)
 }
 
-//// PRIVATE
+// NumHooks counts the hooks
+func (s *Service) NumHooks() int {
+	return len(s.hooks)
+}
+
 // TODO need refactoring here
 func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) map[string]interface{} {
 	results := make(map[string]interface{})
 
 	type result struct {
-		ContractResults interface{}            `json:"contracts"`
-		HookResults     map[string]interface{} `json:"hooks"`
-		Timestamp       int64                  `json:"timestamp"`
-		HumanTime       string                 `json:"human_time"`
+		HookResults map[string]interface{} `json:"hooks"`
+		Timestamp   int64                  `json:"timestamp"`
+		HumanTime   string                 `json:"human_time"`
 	}
 
 	log.Print("service: ", *s)
 	// apply hook contracts
-	for i := 0; i < len(s.Hooks); i++ {
-		hookName := runtime.FuncForPC(reflect.ValueOf(s.Hooks[i]).Pointer()).Name()
-		hookRet := s.Hooks[i].(func(*AddressBook, interface{}) interface{})(addressBook, *json) // poetry
+	for i := 0; i < len(s.hooks); i++ {
+		hookName := runtime.FuncForPC(reflect.ValueOf(s.hooks[i]).Pointer()).Name()
+		hookRet := s.hooks[i].(func(*AddressBook, interface{}) interface{})(addressBook, *json) // poetry
+
+		log.Println("firing: ", hookName)
 
 		if res, ok := results[hookName]; ok {
 			tempResult := res.(result)
@@ -332,10 +313,9 @@ func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) ma
 			m[hookName] = hookRet
 
 			results[hookName] = result{
-				ContractResults: nil,
-				HookResults:     m,
-				Timestamp:       time.Now().Unix(),
-				HumanTime:       time.Now().Format(time.RFC850),
+				HookResults: m,
+				Timestamp:   time.Now().Unix(),
+				HumanTime:   time.Now().Format(time.RFC850),
 			}
 		}
 	}

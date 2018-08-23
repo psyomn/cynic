@@ -119,7 +119,7 @@ func TestIntegration(t *testing.T) {
 		if !ok {
 			t.Fatal("location should be in map")
 		}
-		Assert(t, len(service.Hooks) == 3)
+		Assert(t, service.NumHooks() == 3)
 	}
 
 	{ // get simple key/values
@@ -155,7 +155,7 @@ func TestAddHook(t *testing.T) {
 	service.AddHook(func(entry interface{}) interface{} {
 		return 42
 	})
-	Assert(t, len(service.Hooks) == 1)
+	Assert(t, service.NumHooks() == 1)
 }
 
 func TestAddServiceWithHook(t *testing.T) {
@@ -176,5 +176,5 @@ func TestAddServiceWithHook(t *testing.T) {
 
 	Assert(t, getService.URL.String() == service.URL.String())
 	Assert(t, getService.Secs == service.Secs)
-	Assert(t, len(getService.Hooks) == len(service.Hooks))
+	Assert(t, getService.NumHooks() == service.NumHooks())
 }

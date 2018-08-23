@@ -106,6 +106,8 @@ func exampleHook(s *cynic.AddressBook, resp interface{}) interface{} {
 		Message string `json:"message"`
 	}
 
+	fmt.Println("Firing the example hook yay!")
+
 	return result{
 		Alert:   true,
 		Message: "AARRRGGHHHHHH",
@@ -129,7 +131,6 @@ func main() {
 
 	handleLog(logPath)
 
-	config = handleConfig(configFile)
 	sh = handleSlackHook(slackHook)
 
 	log.Printf("status-port: %s\n", statusPort)
@@ -139,8 +140,18 @@ func main() {
 	services = append(services, cynic.ServiceNew("http://localhost:9001/two", 1))
 	services = append(services, cynic.ServiceNew("http://localhost:9001/flappyerror", 1))
 
+	// services[0].AddHook(exampleHook)
+	// services[1].AddHook(exampleHook)
+	// services[2].AddHook(exampleHook)
+
+	for i := 0; i < len(services); i++ {
+		fmt.Println("entry: ", services[i])
+		fmt.Printf("address: %p\n", &services[i])
+	}
+
+	fmt.Println("passing to session: ", services)
+
 	session := cynic.Session{
-		Config:     config,
 		StatusPort: statusPort,
 		SlackHook:  sh,
 		Services:   services,
