@@ -19,16 +19,8 @@ limitations under the License.
 package cynictesting
 
 import (
-	"io/ioutil"
-	"log"
 	"testing"
 )
-
-// FixturePathSimple is path to simple fixture for testing.
-const FixturePathSimple = "./fixtures/simple.json"
-
-// FixturePathStatus is Path to status fixture for testing.
-const FixturePathStatus = "./fixtures/status.json"
 
 // Assert is a simple helper to see if something is true, and if not
 // raise failure.
@@ -36,15 +28,4 @@ func Assert(t *testing.T, val bool) {
 	if !val {
 		t.Fail()
 	}
-}
-
-// ReadFixture simply reads a fixture and returns it as a string.
-func ReadFixture(path string) string {
-	contents, err := ioutil.ReadFile(path)
-
-	if err != nil {
-		log.Fatal("problem opening fixture ", path, ": ", err)
-	}
-
-	return string(contents[:])
 }

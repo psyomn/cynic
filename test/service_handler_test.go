@@ -35,9 +35,11 @@ func makeSession() cynic.Session {
 
 func TestMakeService(t *testing.T) {
 	services := cynic.AddressBookNew(makeSession())
+	ser1 := cynic.ServiceNew("www.google.com", 60)
+	ser2 := cynic.ServiceNew("www.example.com", 12)
 
-	services.AddService("www.google.com", 60, []string{})
-	services.AddService("www.example.com", 12, []string{})
+	services.AddService(&ser1)
+	services.AddService(&ser2)
 }
 
 func TestNumEntries(t *testing.T) {
@@ -45,14 +47,23 @@ func TestNumEntries(t *testing.T) {
 	Assert(t, services.NumEntries() == 0)
 	Assert(t, services.NumEntries() == 0)
 
-	services.AddService("www.google.com", 60, []string{})
-	Assert(t, services.NumEntries() == 1)
+	{
+		service := cynic.ServiceNew("www.google.com", 60)
+		services.AddService(&service)
+		Assert(t, services.NumEntries() == 1)
+	}
 
-	services.AddService("www.example.com", 32, []string{})
-	Assert(t, services.NumEntries() == 2)
+	{
+		service := cynic.ServiceNew("www.example.com", 60)
+		services.AddService(&service)
+		Assert(t, services.NumEntries() == 2)
+	}
 
-	services.AddService("www.google.com", 60, []string{})
-	Assert(t, services.NumEntries() == 2)
+	{
+		service := cynic.ServiceNew("www.google.com", 60)
+		services.AddService(&service)
+		Assert(t, services.NumEntries() == 2)
+	}
 }
 
 func TestIntegration(t *testing.T) {
@@ -60,16 +71,14 @@ func TestIntegration(t *testing.T) {
 	var count1, count2, count3 int32
 
 	services := cynic.AddressBookNew(makeSession())
-	fixtureSimple := ReadFixture(FixturePathSimple)
-	fixtureStatus := ReadFixture(FixturePathStatus)
 
 	ts1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, fixtureSimple)
+		fmt.Fprintln(w, "{}")
 		atomic.AddInt32(&count1, 1)
 	}))
 
 	ts2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, fixtureStatus)
+		fmt.Fprintln(w, "{}")
 		atomic.AddInt32(&count2, 1)
 	}))
 
@@ -84,35 +93,28 @@ func TestIntegration(t *testing.T) {
 	defer ts3.Close()
 
 	// FIRE
-
-	{ /* get val and extra */
-		jpathContracts := []string{
-			/* get simple key value */
-			"$.random.stuff",
-			/* "$..val", "$..extra", */
-			"$.entries[?(@.val>10)]",
-		}
-
-		services.AddService(ts1.URL, 1, jpathContracts)
-
-		services.AddHook(func(_ *cynic.AddressBook, entry interface{}) interface{} {
-			fmt.Print("ARRRGHHHH world")
+	{ // get val and extra
+		service := cynic.ServiceNew(ts1.URL, 1)
+		service.AddHook(func(_ *cynic.AddressBook, _ interface{}) interface{} {
 			atomic.AddInt32(&hcnt1, 1)
 			return 42
-		}, ts1.URL, 1)
+		})
 
-		services.AddHook(func(_ *cynic.AddressBook, entry interface{}) interface{} {
-			fmt.Print("Muaahhahahahahahaha")
+		service.AddHook(func(_ *cynic.AddressBook, _ interface{}) interface{} {
 			atomic.AddInt32(&hcnt2, 1)
 			return 42
-		}, ts1.URL, 1)
+		})
 
-		services.AddHook(func(_ *cynic.AddressBook, entry interface{}) interface{} {
+		service.AddHook(func(_ *cynic.AddressBook, _ interface{}) interface{} {
 			fmt.Print("BY THE POWER OF GREYSKULL")
 			atomic.AddInt32(&hcnt3, 1)
 			return 42
-		}, ts1.URL, 1)
+		})
 
+		services.AddService(&service)
+	}
+
+	{ // check service exists
 		service, ok := services.Get(ts1.URL)
 		if !ok {
 			t.Fatal("location should be in map")
@@ -121,18 +123,16 @@ func TestIntegration(t *testing.T) {
 	}
 
 	{ // get simple key/values
-		jpathContracts := []string{
-			"$.status.state",
-			"$.status.date",
-			"$.status.build",
-		}
-
-		services.AddService(ts2.URL, 1, jpathContracts)
+		service := cynic.ServiceNew(ts2.URL, 1)
+		services.AddService(&service)
 	}
 
 	{ // test for bad requests/bad server
-		services.AddService(ts3.URL, 1, nil)
+		service := cynic.ServiceNew(ts3.URL, 1)
+		services.AddService(&service)
 	}
+
+	Assert(t, services.NumEntries() == 3)
 
 	signal := make(chan int)
 	go func() { services.Run(signal) }()
@@ -150,13 +150,31 @@ func TestIntegration(t *testing.T) {
 	signal <- cynic.StopService
 }
 
-func TestHook(t *testing.T) {
-	location := "www.google.com"
-	services := cynic.AddressBookNew(makeSession())
-	services.AddService(location, 60, []string{})
-
-	services.AddHook(func(entry interface{}) interface{} {
-		fmt.Print("ARRRGHHHH world")
+func TestAddHook(t *testing.T) {
+	service := cynic.ServiceNew("www.google.com", 60)
+	service.AddHook(func(entry interface{}) interface{} {
 		return 42
-	}, location, 1)
+	})
+	Assert(t, len(service.Hooks) == 1)
+}
+
+func TestAddServiceWithHook(t *testing.T) {
+	location := "www.google.com"
+	service := cynic.ServiceNew(location, 1)
+	service.AddHook(func(_ *cynic.AddressBook, _ interface{}) interface{} {
+		return 1
+	})
+
+	book := cynic.AddressBookNew(makeSession())
+	book.AddService(&service)
+	Assert(t, book.NumEntries() == 1)
+
+	getService, ok := book.Get(service.URL.String())
+	if !ok {
+		t.Fail()
+	}
+
+	Assert(t, getService.URL.String() == service.URL.String())
+	Assert(t, getService.Secs == service.Secs)
+	Assert(t, len(getService.Hooks) == len(service.Hooks))
 }

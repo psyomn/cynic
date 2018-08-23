@@ -1,4 +1,6 @@
 /*
+This is an example, on how you could deploy a cynic instance.
+
 Copyright 2018 Simon Symeonidis (psyomn)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -95,6 +97,21 @@ func handleSlackHook(slackHook string) *string {
 	return sh
 }
 
+// You need to respect this interface so that you can bind hooks to
+// your services. You can return a struct with json hints as shown
+// bellow, and cynic will add that to the /status endpoint.
+func exampleHook(s *cynic.AddressBook, resp interface{}) interface{} {
+	type result struct {
+		Alert   bool   `json:"alert"`
+		Message string `json:"message"`
+	}
+
+	return result{
+		Alert:   true,
+		Message: "AARRRGGHHHHHH",
+	}
+}
+
 func main() {
 	// config
 	initFlag()
@@ -117,11 +134,16 @@ func main() {
 
 	log.Printf("status-port: %s\n", statusPort)
 
+	var services []cynic.Service
+	services = append(services, cynic.ServiceNew("http://localhost:9001/one", 1))
+	services = append(services, cynic.ServiceNew("http://localhost:9001/two", 1))
+	services = append(services, cynic.ServiceNew("http://localhost:9001/flappyerror", 1))
+
 	session := cynic.Session{
 		Config:     config,
 		StatusPort: statusPort,
 		SlackHook:  sh,
-		Hooks:      nil,
+		Services:   services,
 	}
 
 	cynic.Start(session)
