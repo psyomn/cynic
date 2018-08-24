@@ -97,20 +97,37 @@ func handleSlackHook(slackHook string) *string {
 	return sh
 }
 
+type result struct {
+	Alert   bool   `json:"alert"`
+	Message string `json:"message"`
+}
+
 // You need to respect this interface so that you can bind hooks to
 // your services. You can return a struct with json hints as shown
 // bellow, and cynic will add that to the /status endpoint.
 func exampleHook(s *cynic.AddressBook, resp interface{}) interface{} {
-	type result struct {
-		Alert   bool   `json:"alert"`
-		Message string `json:"message"`
-	}
-
 	fmt.Println("Firing the example hook yay!")
 
 	return result{
 		Alert:   true,
 		Message: "AARRRGGHHHHHH",
+	}
+}
+
+// Another example hook
+func anotherExampleHook(c *cynic.AddressBook, resp interface{}) interface{} {
+	fmt.Println("Firing example hook 2 yay!")
+	return result{
+		Alert:   true,
+		Message: "I feel calm and collected inside.",
+	}
+}
+
+func finalHook(c *cynic.AddressBook, resp interface{}) interface{} {
+	fmt.Println("IT'S THE FINAL HOOKDOWN")
+	return result{
+		Alert:   false,
+		Message: "I feel calm and collected inside.",
 	}
 }
 
@@ -140,9 +157,15 @@ func main() {
 	services = append(services, cynic.ServiceNew("http://localhost:9001/two", 1))
 	services = append(services, cynic.ServiceNew("http://localhost:9001/flappyerror", 1))
 
-	// services[0].AddHook(exampleHook)
-	// services[1].AddHook(exampleHook)
-	// services[2].AddHook(exampleHook)
+	services[0].AddHook(exampleHook)
+	services[0].AddHook(anotherExampleHook)
+	services[0].AddHook(finalHook)
+
+	services[1].AddHook(exampleHook)
+
+	services[2].AddHook(exampleHook)
+	services[2].AddHook(anotherExampleHook)
+	services[2].AddHook(finalHook)
 
 	for i := 0; i < len(services); i++ {
 		fmt.Println("entry: ", services[i])

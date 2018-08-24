@@ -178,3 +178,7 @@ func TestAddServiceWithHook(t *testing.T) {
 	Assert(t, getService.Secs == service.Secs)
 	Assert(t, getService.NumHooks() == service.NumHooks())
 }
+
+func TestSwapLocationsDynamically(t *testing.T) {
+	fmt.Println("TODO")
+}

@@ -23,8 +23,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"reflect"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -120,7 +118,9 @@ func (s *AddressBook) AddService(service *Service) {
 
 // Get gets a reference to the service with the given rawurl.
 func (s *AddressBook) Get(rawurl string) (*Service, bool) {
+	s.Mutex.Lock()
 	val, found := s.entries[rawurl]
+	s.Mutex.Unlock()
 	return val, found
 }
 
@@ -284,41 +284,33 @@ func (s *Service) NumHooks() int {
 	return len(s.hooks)
 }
 
-// TODO need refactoring here
-func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) map[string]interface{} {
-	results := make(map[string]interface{})
-
+func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) interface{} {
 	type result struct {
 		HookResults map[string]interface{} `json:"hooks"`
 		Timestamp   int64                  `json:"timestamp"`
 		HumanTime   string                 `json:"human_time"`
+		Alert       bool                   `json:"alert"`
 	}
 
-	log.Print("service: ", *s)
-	// apply hook contracts
+	var ret result
+	ret.HookResults = make(map[string]interface{})
+
 	for i := 0; i < len(s.hooks); i++ {
-		hookName := runtime.FuncForPC(reflect.ValueOf(s.hooks[i]).Pointer()).Name()
+		hookName := getFuncName(s.hooks[i])
 		hookRet := s.hooks[i].(func(*AddressBook, interface{}) interface{})(addressBook, *json) // poetry
 
-		log.Println("firing: ", hookName)
-
-		if res, ok := results[hookName]; ok {
+		if res, ok := ret.HookResults[hookName]; ok {
 			tempResult := res.(result)
 			tempResult.HookResults[hookName] = hookRet
 			tempResult.Timestamp = time.Now().Unix()
-
-			results[hookName] = tempResult
+			ret.HookResults[hookName] = tempResult
 		} else {
-			m := make(map[string]interface{})
-			m[hookName] = hookRet
-
-			results[hookName] = result{
-				HookResults: m,
-				Timestamp:   time.Now().Unix(),
-				HumanTime:   time.Now().Format(time.RFC850),
-			}
+			ret.HookResults[hookName] = hookRet
+			ret.Timestamp = time.Now().Unix()
+			ret.HumanTime = time.Now().Format(time.RFC850)
+			ret.Alert = false
 		}
 	}
 
-	return results
+	return ret
 }
