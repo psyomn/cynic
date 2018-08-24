@@ -69,6 +69,7 @@ type Service struct {
 	ticker     *time.Ticker
 	running    bool
 	tickerChan chan int
+	immediate  bool
 }
 
 // TODO make sure that this is used everywhere.
@@ -188,13 +189,18 @@ func (s *AddressBook) StartTickers() {
 	s.Mutex.Lock()
 	for _, service := range s.entries {
 		if service.running {
-			log.Println("already running: ", service)
 			continue
 		}
 
 		log.Print(service.URL, " is not started, starting.")
-		service.running = true
+
 		go func(service *Service, status *StatusServer) {
+			if !service.running && service.immediate {
+				// Force first tick if service is immediate
+				workerQuery(s, service, status)
+			}
+			service.running = true
+
 			for {
 				select {
 				case <-service.ticker.C:
@@ -264,11 +270,13 @@ func ServiceNew(rawurl string, secs int) Service {
 		ticker,
 		false,
 		tchan,
+		false,
 	}
 }
 
 // Stop service will stop the ticker, and gracefully exit it.
 func (s *Service) Stop() {
+	log.Print("stopping service: ", s.URL.String())
 	s.ticker.Stop()
 	s.tickerChan <- 0
 	close(s.tickerChan)
@@ -282,6 +290,11 @@ func (s *Service) AddHook(fn interface{}) {
 // NumHooks counts the hooks
 func (s *Service) NumHooks() int {
 	return len(s.hooks)
+}
+
+// Immediate will make the service run immediately
+func (s *Service) Immediate() {
+	s.immediate = true
 }
 
 func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) interface{} {

@@ -27,8 +27,6 @@ import (
 )
 
 var (
-	configFile  string
-	config      *string
 	statusPort  = cynic.StatusPort
 	slackHook   string
 	sh          *string
@@ -40,7 +38,6 @@ var (
 
 func initFlag() {
 	// General
-	flag.StringVar(&configFile, "config", configFile, "cynic config location")
 	flag.StringVar(&statusPort, "status-port", statusPort, "http status server port")
 	flag.StringVar(&logPath, "log", logPath, "path to log file")
 
@@ -72,18 +69,6 @@ func handleLog(logPath string) {
 	}
 
 	log.SetOutput(file)
-}
-
-func handleConfig(configFile string) *string {
-	var conf *string
-	if configFile == "" {
-		conf = nil
-		log.Print("no config loaded")
-	} else {
-		conf = &configFile
-		log.Print("config: ", configFile)
-	}
-	return conf
 }
 
 func handleSlackHook(slackHook string) *string {
@@ -132,7 +117,6 @@ func finalHook(c *cynic.AddressBook, resp interface{}) interface{} {
 }
 
 func main() {
-	// config
 	initFlag()
 	flag.Parse()
 
