@@ -1,0 +1,25 @@
+[
+    {
+	"url": "http://localhost:9001/one",
+	"secs": 10,
+	"contracts": [
+	    "$.Name"
+	]
+    },
+    {
+	"url": "http://localhost:9001/two",
+	"secs": 20,
+	"contracts": [
+	    "$.Name",
+	    "$.Age"
+	]
+    },
+    {
+	"url": "http://localhost:9001/flappyerror",
+	"secs": 3,
+	"contracts": [
+	    "$.Name",
+	    "$.Age"
+	]
+    }
+]
