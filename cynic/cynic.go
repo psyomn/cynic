@@ -58,6 +58,14 @@ func usage() {
 	flag.Usage()
 }
 
+// This is to show that you can have a simple alerter, if something is
+// detected to be awry in the monitoring.
+func exampleAlerter() {
+	fmt.Println("##################################")
+	fmt.Println("# Hey you! Better pay attention! #")
+	fmt.Println("##################################")
+}
+
 func handleLog(logPath string) {
 	if logPath == "" {
 		return
@@ -90,27 +98,26 @@ type result struct {
 // You need to respect this interface so that you can bind hooks to
 // your services. You can return a struct with json hints as shown
 // bellow, and cynic will add that to the /status endpoint.
-func exampleHook(s *cynic.AddressBook, resp interface{}) interface{} {
+func exampleHook(s *cynic.AddressBook, resp interface{}) (alert bool, data interface{}) {
 	fmt.Println("Firing the example hook yay!")
-
-	return result{
+	return false, result{
 		Alert:   true,
 		Message: "AARRRGGHHHHHH",
 	}
 }
 
 // Another example hook
-func anotherExampleHook(c *cynic.AddressBook, resp interface{}) interface{} {
+func anotherExampleHook(c *cynic.AddressBook, resp interface{}) (alert bool, data interface{}) {
 	fmt.Println("Firing example hook 2 yay!")
-	return result{
+	return false, result{
 		Alert:   true,
 		Message: "I feel calm and collected inside.",
 	}
 }
 
-func finalHook(c *cynic.AddressBook, resp interface{}) interface{} {
+func finalHook(c *cynic.AddressBook, resp interface{}) (alert bool, data interface{}) {
 	fmt.Println("IT'S THE FINAL HOOKDOWN")
-	return result{
+	return false, result{
 		Alert:   false,
 		Message: "I feel calm and collected inside.",
 	}
@@ -162,6 +169,8 @@ func main() {
 		StatusPort: statusPort,
 		SlackHook:  sh,
 		Services:   services,
+		Alerter:    exampleAlerter,
+		AlertTime:  20, // check status every 20 seconds
 	}
 
 	cynic.Start(session)

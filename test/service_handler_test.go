@@ -30,7 +30,12 @@ import (
 )
 
 func makeSession() cynic.Session {
-	return cynic.Session{StatusPort: cynic.StatusPort, SlackHook: nil}
+	return cynic.Session{
+		StatusPort: cynic.StatusPort,
+		SlackHook:  nil,
+		Alerter:    nil,
+		AlertTime:  0,
+	}
 }
 
 func TestMakeService(t *testing.T) {
@@ -95,20 +100,20 @@ func TestIntegration(t *testing.T) {
 	// FIRE
 	{ // get val and extra
 		service := cynic.ServiceNew(ts1.URL, 1)
-		service.AddHook(func(_ *cynic.AddressBook, _ interface{}) interface{} {
+		service.AddHook(func(_ *cynic.AddressBook, _ interface{}) (bool, interface{}) {
 			atomic.AddInt32(&hcnt1, 1)
-			return 42
+			return false, 42
 		})
 
-		service.AddHook(func(_ *cynic.AddressBook, _ interface{}) interface{} {
+		service.AddHook(func(_ *cynic.AddressBook, _ interface{}) (bool, interface{}) {
 			atomic.AddInt32(&hcnt2, 1)
-			return 42
+			return false, 42
 		})
 
-		service.AddHook(func(_ *cynic.AddressBook, _ interface{}) interface{} {
+		service.AddHook(func(_ *cynic.AddressBook, _ interface{}) (bool, interface{}) {
 			fmt.Print("BY THE POWER OF GREYSKULL")
 			atomic.AddInt32(&hcnt3, 1)
-			return 42
+			return false, 42
 		})
 
 		services.AddService(&service)
@@ -161,8 +166,8 @@ func TestAddHook(t *testing.T) {
 func TestAddServiceWithHook(t *testing.T) {
 	location := "www.google.com"
 	service := cynic.ServiceNew(location, 1)
-	service.AddHook(func(_ *cynic.AddressBook, _ interface{}) interface{} {
-		return 1
+	service.AddHook(func(_ *cynic.AddressBook, _ interface{}) (bool, interface{}) {
+		return false, 1
 	})
 
 	book := cynic.AddressBookNew(makeSession())

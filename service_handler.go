@@ -44,6 +44,8 @@ type Session struct {
 	StatusPort string
 	SlackHook  *string
 	Services   []Service
+	Alerter    func()
+	AlertTime  int
 }
 
 // Service is some http service location that should be queried in a
@@ -82,6 +84,10 @@ type AddressBook struct {
 	entries      map[string]*Service
 	statusServer StatusServer
 	Mutex        *sync.Mutex
+
+	alerter     func()
+	alertTicker *time.Ticker
+	alert       bool
 }
 
 // Start starts a cynic instance, with any provided hooks.
@@ -95,11 +101,26 @@ func Start(session Session) {
 func AddressBookNew(session Session) *AddressBook {
 	entries := make(map[string]*Service)
 	statusServer := StatusServerNew(session.StatusPort, session.SlackHook)
-	addressBook := AddressBook{entries, statusServer, &sync.Mutex{}}
+
+	var alertTicker *time.Ticker
+	if session.Alerter != nil {
+		alertTicker = time.NewTicker(time.Duration(session.AlertTime) * time.Second)
+	}
+
+	addressBook := AddressBook{
+		entries,
+		statusServer,
+		&sync.Mutex{},
+		session.Alerter,
+		alertTicker,
+		false,
+	}
 
 	for i := 0; i < len(session.Services); i++ {
 		addressBook.AddService(&session.Services[i])
 	}
+
+	addressBook.alerter = session.Alerter
 
 	return &addressBook
 }
@@ -140,7 +161,12 @@ func (s *AddressBook) Contains(rawurl string) bool {
 func (s *AddressBook) Run(signal chan int) {
 	log.Println("starting the query service")
 	s.StartTickers()
+
 	go func() { s.statusServer.Start() }()
+
+	if s.alerter != nil {
+		go func() { s.startAlerter() }()
+	}
 
 commands:
 	for {
@@ -220,6 +246,24 @@ func (s *AddressBook) stopTickers() {
 		service.ticker.Stop()
 	}
 	s.Mutex.Unlock()
+}
+
+func (s *AddressBook) queueAlert() {
+	s.Mutex.Lock()
+	s.alert = true
+	s.Mutex.Unlock()
+}
+
+func (s *AddressBook) startAlerter() {
+	for range s.alertTicker.C {
+		log.Println("Ticker for alerter: ", s.alert)
+		if s.alert {
+			s.alert = false
+			s.alerter()
+		}
+
+		log.Println("Ticker for alerter: ", s.alert)
+	}
 }
 
 // TODO this could probably be a object method instead...
@@ -305,12 +349,14 @@ func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) in
 		Alert       bool                   `json:"alert"`
 	}
 
+	var sumAlerts bool
 	var ret result
 	ret.HookResults = make(map[string]interface{})
 
 	for i := 0; i < len(s.hooks); i++ {
 		hookName := getFuncName(s.hooks[i])
-		hookRet := s.hooks[i].(func(*AddressBook, interface{}) interface{})(addressBook, *json) // poetry
+		alert, hookRet := s.hooks[i].(func(*AddressBook, interface{}) (bool, interface{}))(addressBook, *json) // poetry
+		sumAlerts = sumAlerts || alert
 
 		if res, ok := ret.HookResults[hookName]; ok {
 			tempResult := res.(result)
@@ -323,6 +369,10 @@ func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) in
 			ret.HumanTime = time.Now().Format(time.RFC850)
 			ret.Alert = false
 		}
+	}
+
+	if sumAlerts {
+		addressBook.queueAlert()
 	}
 
 	return ret
