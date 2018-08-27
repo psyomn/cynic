@@ -113,7 +113,7 @@ func TestIntegration(t *testing.T) {
 		service.AddHook(func(_ *cynic.AddressBook, _ interface{}) (bool, interface{}) {
 			fmt.Print("BY THE POWER OF GREYSKULL")
 			atomic.AddInt32(&hcnt3, 1)
-			return false, 42
+			return true, 42
 		})
 
 		services.AddService(&service)

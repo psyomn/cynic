@@ -256,13 +256,12 @@ func (s *AddressBook) queueAlert() {
 
 func (s *AddressBook) startAlerter() {
 	for range s.alertTicker.C {
-		log.Println("Ticker for alerter: ", s.alert)
 		if s.alert {
+			s.Mutex.Lock()
 			s.alert = false
+			s.Mutex.Unlock()
 			s.alerter()
 		}
-
-		log.Println("Ticker for alerter: ", s.alert)
 	}
 }
 
@@ -308,13 +307,13 @@ func ServiceNew(rawurl string, secs int) Service {
 	tchan := make(chan int)
 
 	return Service{
-		*u,
-		secs,
-		hooks,
-		ticker,
-		false,
-		tchan,
-		false,
+		URL:        *u,
+		Secs:       secs,
+		hooks:      hooks,
+		ticker:     ticker,
+		running:    false,
+		tickerChan: tchan,
+		immediate:  false,
 	}
 }
 
@@ -349,25 +348,26 @@ func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) in
 		Alert       bool                   `json:"alert"`
 	}
 
-	var sumAlerts bool
 	var ret result
+	sumAlerts := false
 	ret.HookResults = make(map[string]interface{})
 
 	for i := 0; i < len(s.hooks); i++ {
 		hookName := getFuncName(s.hooks[i])
-		alert, hookRet := s.hooks[i].(func(*AddressBook, interface{}) (bool, interface{}))(addressBook, *json) // poetry
-		sumAlerts = sumAlerts || alert
+		retAlert, hookRet := s.hooks[i].(func(*AddressBook, interface{}) (bool, interface{}))(addressBook, *json) // poetry
+		sumAlerts = sumAlerts || retAlert
 
 		if res, ok := ret.HookResults[hookName]; ok {
 			tempResult := res.(result)
 			tempResult.HookResults[hookName] = hookRet
 			tempResult.Timestamp = time.Now().Unix()
 			ret.HookResults[hookName] = tempResult
+			ret.Alert = retAlert
 		} else {
 			ret.HookResults[hookName] = hookRet
 			ret.Timestamp = time.Now().Unix()
 			ret.HumanTime = time.Now().Format(time.RFC850)
-			ret.Alert = false
+			ret.Alert = retAlert
 		}
 	}
 
