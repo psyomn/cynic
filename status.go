@@ -18,7 +18,6 @@ limitations under the License.
 package cynic
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -33,7 +32,6 @@ import (
 type StatusServer struct {
 	contractResults *sync.Map
 	server          *http.Server
-	slackHook       *string
 	alerter         *time.Ticker
 	wg              *sync.WaitGroup
 }
@@ -50,7 +48,7 @@ const (
 )
 
 // StatusServerNew creates a new status server for cynic
-func StatusServerNew(port string, slackHook *string) StatusServer {
+func StatusServerNew(port string) StatusServer {
 	server := &http.Server{
 		Addr:           ":" + port,
 		ReadTimeout:    10 * time.Second,
@@ -58,33 +56,17 @@ func StatusServerNew(port string, slackHook *string) StatusServer {
 		MaxHeaderBytes: 1 << 20,
 	}
 
-	return StatusServer{&sync.Map{}, server, slackHook, nil, nil}
+	return StatusServer{&sync.Map{}, server, nil, nil}
 }
 
 // Start stats a new server. Should be running in the background.
 func (s *StatusServer) Start() {
-	if s.slackHook != nil {
-		log.Print("starting alerter")
-
-		var wg sync.WaitGroup
-		s.alerter = time.NewTicker(time.Duration(statusPokeTime) * time.Second)
-
-		s.wg = &wg
-		s.wg.Add(1)
-		go s.alertLoop()
-	}
-
 	http.HandleFunc("/status", s.makeResponse)
 	log.Print(s.server.ListenAndServe())
 }
 
 // Stop gracefully shuts down the server
 func (s *StatusServer) Stop() {
-	if s.slackHook != nil {
-		s.alerter.Stop()
-		s.wg.Wait()
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	nilAndOk(s.server.Shutdown(ctx), "could not shutdown server gracefully")
@@ -128,25 +110,4 @@ func countMap(m *sync.Map) int {
 		return true
 	})
 	return count
-}
-
-func (s *StatusServer) alertLoop() {
-	for range s.alerter.C {
-		if countMap(s.contractResults) == 0 {
-			return
-		}
-
-		values := map[string]interface{}{"text": "I LIVE!", "link_names": 1}
-
-		jsonValue, err := json.Marshal(values)
-		if err != nil {
-			log.Print("could not encode response: ", values)
-		}
-
-		header := "application/json"
-		buff := bytes.NewBuffer(jsonValue)
-		if _, err := http.Post(*s.slackHook, header, buff); err != nil {
-			log.Print("could not POST to slack", err)
-		}
-	}
 }
