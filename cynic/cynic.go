@@ -60,7 +60,7 @@ func usage() {
 
 // This is to show that you can have a simple alerter, if something is
 // detected to be awry in the monitoring.
-func exampleAlerter() {
+func exampleAlerter(_ []cynic.AlertMessage) {
 	fmt.Println("##################################")
 	fmt.Println("# Hey you! Better pay attention! #")
 	fmt.Println("##################################")
