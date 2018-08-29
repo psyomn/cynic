@@ -151,6 +151,7 @@ func main() {
 	services[0].AddHook(exampleHook)
 	services[0].AddHook(anotherExampleHook)
 	services[0].AddHook(finalHook)
+	services[0].Offset(10) // delay 10 seconds before starting
 
 	services[1].AddHook(exampleHook)
 
