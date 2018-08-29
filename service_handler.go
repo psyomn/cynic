@@ -86,6 +86,7 @@ type Service struct {
 	running    bool
 	tickerChan chan int
 	immediate  bool
+	offset     int
 }
 
 // TODO make sure that this is used everywhere.
@@ -237,6 +238,10 @@ func (s *AddressBook) StartTickers() {
 		log.Print(service.URL, " is not started, starting.")
 
 		go func(service *Service, status *StatusServer) {
+			if service.offset > 0 {
+				time.Sleep(time.Duration(service.offset) * time.Second)
+			}
+
 			if !service.running && service.immediate {
 				// Force first tick if service is immediate
 				workerQuery(s, service, status)
@@ -337,6 +342,7 @@ func ServiceNew(rawurl string, secs int) Service {
 		running:    false,
 		tickerChan: tchan,
 		immediate:  false,
+		offset:     0,
 	}
 }
 
@@ -361,6 +367,11 @@ func (s *Service) NumHooks() int {
 // Immediate will make the service run immediately
 func (s *Service) Immediate() {
 	s.immediate = true
+}
+
+// Offset sets the time before the service starts ticking
+func (s *Service) Offset(offset int) {
+	s.offset = offset
 }
 
 func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) interface{} {
