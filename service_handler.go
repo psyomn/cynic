@@ -23,6 +23,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"sync"
 	"time"
 )
@@ -38,13 +39,26 @@ const (
 	DeleteService = iota
 )
 
+// AlertFunc defines the hook signature for alert messages
+type AlertFunc = func([]AlertMessage)
+
+// AlertMessage defines a simple alert structure that can be used by
+// users of the library, and decide how to show information about the
+// alerts.
+type AlertMessage struct {
+	Response      interface{} `json:"response_text"`
+	Endpoint      string      `json:"endpoint"`
+	Now           string      `json:"now"`
+	CynicHostname string      `json:"cynic_hostname"`
+}
+
 // Session is the configuration a cynic instance requires to start
 // running and working
 type Session struct {
 	StatusPort string
 	SlackHook  *string
 	Services   []Service
-	Alerter    func()
+	Alerter    AlertFunc
 	AlertTime  int
 }
 
@@ -85,9 +99,9 @@ type AddressBook struct {
 	statusServer StatusServer
 	Mutex        *sync.Mutex
 
-	alerter     func()
-	alertTicker *time.Ticker
-	alert       bool
+	alerter       AlertFunc
+	alertTicker   *time.Ticker
+	alertMessages []AlertMessage
 }
 
 // Start starts a cynic instance, with any provided hooks.
@@ -107,13 +121,15 @@ func AddressBookNew(session Session) *AddressBook {
 		alertTicker = time.NewTicker(time.Duration(session.AlertTime) * time.Second)
 	}
 
+	alertMessages := make([]AlertMessage, 0)
+
 	addressBook := AddressBook{
-		entries,
-		statusServer,
-		&sync.Mutex{},
-		session.Alerter,
-		alertTicker,
-		false,
+		entries:       entries,
+		statusServer:  statusServer,
+		Mutex:         &sync.Mutex{},
+		alerter:       session.Alerter,
+		alertTicker:   alertTicker,
+		alertMessages: alertMessages,
 	}
 
 	for i := 0; i < len(session.Services); i++ {
@@ -248,19 +264,26 @@ func (s *AddressBook) stopTickers() {
 	s.Mutex.Unlock()
 }
 
-func (s *AddressBook) queueAlert() {
+func (s *AddressBook) queueAlert(message *AlertMessage) {
+	if message == nil {
+		log.Fatal("don't queue null message alerts")
+	}
+
 	s.Mutex.Lock()
-	s.alert = true
+	s.alertMessages = append(s.alertMessages, *message)
 	s.Mutex.Unlock()
 }
 
 func (s *AddressBook) startAlerter() {
 	for range s.alertTicker.C {
-		if s.alert {
+		if len(s.alertMessages) > 0 {
 			s.Mutex.Lock()
-			s.alert = false
+			var messages []AlertMessage
+			messages = s.alertMessages
+			s.alertMessages = make([]AlertMessage, 0)
 			s.Mutex.Unlock()
-			s.alerter()
+
+			s.alerter(messages)
 		}
 	}
 }
@@ -372,7 +395,17 @@ func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) in
 	}
 
 	if sumAlerts {
-		addressBook.queueAlert()
+		hostname, err := os.Hostname()
+		if err != nil {
+			hostname = "nohost"
+		}
+		message := AlertMessage{
+			Endpoint:      s.URL.String(),
+			Response:      ret,
+			CynicHostname: hostname,
+			Now:           time.Now().Format(time.RFC850),
+		}
+		addressBook.queueAlert(&message)
 	}
 
 	return ret
