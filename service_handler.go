@@ -220,7 +220,7 @@ func (s *AddressBook) DeleteService(rawurl string) {
 		service.Stop()
 		delete(s.entries, rawurl)
 	} else {
-		log.Print("no such entry to delete", rawurl)
+		log.Print("no such entry to delete: ", rawurl)
 	}
 	s.Mutex.Unlock()
 	s.statusServer.Delete(rawurl)
@@ -235,18 +235,18 @@ func (s *AddressBook) StartTickers() {
 			continue
 		}
 
-		log.Print(service.URL, " is not started, starting.")
+		service.running = true
 
 		go func(service *Service, status *StatusServer) {
 			if service.offset > 0 {
-				time.Sleep(time.Duration(service.offset) * time.Second)
+				waitSeconds := time.Duration(service.offset) * time.Second
+				time.Sleep(waitSeconds)
 			}
 
-			if !service.running && service.immediate {
+			if service.immediate {
 				// Force first tick if service is immediate
 				workerQuery(s, service, status)
 			}
-			service.running = true
 
 			for {
 				select {
