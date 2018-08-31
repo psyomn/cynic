@@ -33,10 +33,10 @@ const (
 	StopService = iota
 
 	// AddService adds a service to a running cynic instance
-	AddService = iota
+	AddService
 
 	// DeleteService removes a service from a running cynic instance
-	DeleteService = iota
+	DeleteService
 )
 
 // AlertFunc defines the hook signature for alert messages
@@ -56,7 +56,6 @@ type AlertMessage struct {
 // running and working
 type Session struct {
 	StatusPort string
-	SlackHook  *string
 	Services   []Service
 	Alerter    AlertFunc
 	AlertTime  int
