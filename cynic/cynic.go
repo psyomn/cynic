@@ -79,17 +79,6 @@ func handleLog(logPath string) {
 	log.SetOutput(file)
 }
 
-func handleSlackHook(slackHook string) *string {
-	var sh *string
-	if slackHook == "" {
-		sh = nil
-	} else {
-		sh = &slackHook
-	}
-	log.Print("slack hook: ", slackHook)
-	return sh
-}
-
 type result struct {
 	Alert   bool   `json:"alert"`
 	Message string `json:"message"`
@@ -139,8 +128,6 @@ func main() {
 
 	handleLog(logPath)
 
-	sh = handleSlackHook(slackHook)
-
 	log.Printf("status-port: %s\n", statusPort)
 
 	var services []cynic.Service
@@ -168,7 +155,6 @@ func main() {
 
 	session := cynic.Session{
 		StatusPort: statusPort,
-		SlackHook:  sh,
 		Services:   services,
 		Alerter:    exampleAlerter,
 		AlertTime:  20, // check status every 20 seconds

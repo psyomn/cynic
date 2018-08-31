@@ -32,7 +32,6 @@ import (
 func makeSession() cynic.Session {
 	return cynic.Session{
 		StatusPort: cynic.StatusPort,
-		SlackHook:  nil,
 		Alerter:    nil,
 		AlertTime:  0,
 	}
