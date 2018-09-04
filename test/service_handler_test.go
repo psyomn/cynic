@@ -156,9 +156,10 @@ func TestIntegration(t *testing.T) {
 
 func TestAddHook(t *testing.T) {
 	service := cynic.ServiceNew("www.google.com", 60)
-	service.AddHook(func(entry interface{}) interface{} {
-		return 42
-	})
+	service.AddHook(
+		func(_ *cynic.AddressBook, entry interface{}) (bool, interface{}) {
+			return false, 42
+		})
 	Assert(t, service.NumHooks() == 1)
 }
 

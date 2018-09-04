@@ -61,6 +61,9 @@ type Session struct {
 	AlertTime  int
 }
 
+// HookSignature specifies what the service hooks should look like.
+type HookSignature = func(*AddressBook, interface{}) (bool, interface{})
+
 // Service is some http service location that should be queried in a
 // specified amount of time.
 //
@@ -80,7 +83,7 @@ type Session struct {
 type Service struct {
 	URL        url.URL
 	Secs       int
-	hooks      []interface{}
+	hooks      []HookSignature
 	ticker     *time.Ticker
 	running    bool
 	tickerChan chan int
@@ -330,7 +333,7 @@ func ServiceNew(rawurl string, secs int) Service {
 	u, err := url.Parse(rawurl)
 	nilOrDie(err, "invalid http endpoint url")
 	ticker := time.NewTicker(time.Duration(secs) * time.Second)
-	hooks := make([]interface{}, 0)
+	hooks := make([]HookSignature, 0)
 	tchan := make(chan int)
 
 	return Service{
@@ -354,7 +357,7 @@ func (s *Service) Stop() {
 }
 
 // AddHook appends a hook to the service
-func (s *Service) AddHook(fn interface{}) {
+func (s *Service) AddHook(fn HookSignature) {
 	s.hooks = append(s.hooks, fn)
 }
 
@@ -387,7 +390,7 @@ func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) in
 
 	for i := 0; i < len(s.hooks); i++ {
 		hookName := getFuncName(s.hooks[i])
-		retAlert, hookRet := s.hooks[i].(func(*AddressBook, interface{}) (bool, interface{}))(addressBook, *json) // poetry
+		retAlert, hookRet := s.hooks[i](addressBook, *json)
 		sumAlerts = sumAlerts || retAlert
 
 		if res, ok := ret.HookResults[hookName]; ok {
