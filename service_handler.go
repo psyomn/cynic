@@ -147,6 +147,8 @@ func AddressBookNew(session Session) *AddressBook {
 // AddService adds a service
 func (s *AddressBook) AddService(service *Service) {
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	rawurl := service.URL.String()
 	if entry, ok := s.entries[rawurl]; ok {
 		if entry.running {
@@ -154,14 +156,13 @@ func (s *AddressBook) AddService(service *Service) {
 		}
 	}
 	s.entries[rawurl] = &*service
-	s.mutex.Unlock()
 }
 
 // Get gets a reference to the service with the given rawurl.
 func (s *AddressBook) Get(rawurl string) (*Service, bool) {
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	val, found := s.entries[rawurl]
-	s.mutex.Unlock()
 	return val, found
 }
 
@@ -225,6 +226,7 @@ func (s *AddressBook) DeleteService(rawurl string) {
 		log.Print("no such entry to delete: ", rawurl)
 	}
 	s.mutex.Unlock()
+
 	s.statusServer.Delete(rawurl)
 }
 
@@ -232,6 +234,8 @@ func (s *AddressBook) DeleteService(rawurl string) {
 // might go away in the future
 func (s *AddressBook) StartTickers() {
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	for _, service := range s.entries {
 		if service.running {
 			continue
@@ -260,15 +264,15 @@ func (s *AddressBook) StartTickers() {
 			}
 		}(service, &s.statusServer)
 	}
-	s.mutex.Unlock()
 }
 
 func (s *AddressBook) stopTickers() {
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	for _, service := range s.entries {
 		service.ticker.Stop()
 	}
-	s.mutex.Unlock()
 }
 
 func (s *AddressBook) queueAlert(message *AlertMessage) {
@@ -277,8 +281,9 @@ func (s *AddressBook) queueAlert(message *AlertMessage) {
 	}
 
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	s.alertMessages = append(s.alertMessages, *message)
-	s.mutex.Unlock()
 }
 
 func (s *AddressBook) startAlerter() {
