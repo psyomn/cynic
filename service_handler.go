@@ -97,7 +97,7 @@ type serviceError struct {
 type AddressBook struct {
 	entries      map[string]*Service
 	statusServer StatusServer
-	Mutex        *sync.Mutex
+	mutex        *sync.Mutex
 
 	alerter       AlertFunc
 	alertTicker   *time.Ticker
@@ -126,7 +126,7 @@ func AddressBookNew(session Session) *AddressBook {
 	addressBook := AddressBook{
 		entries:       entries,
 		statusServer:  statusServer,
-		Mutex:         &sync.Mutex{},
+		mutex:         &sync.Mutex{},
 		alerter:       session.Alerter,
 		alertTicker:   alertTicker,
 		alertMessages: alertMessages,
@@ -143,7 +143,7 @@ func AddressBookNew(session Session) *AddressBook {
 
 // AddService adds a service
 func (s *AddressBook) AddService(service *Service) {
-	s.Mutex.Lock()
+	s.mutex.Lock()
 	rawurl := service.URL.String()
 	if entry, ok := s.entries[rawurl]; ok {
 		if entry.running {
@@ -151,14 +151,14 @@ func (s *AddressBook) AddService(service *Service) {
 		}
 	}
 	s.entries[rawurl] = &*service
-	s.Mutex.Unlock()
+	s.mutex.Unlock()
 }
 
 // Get gets a reference to the service with the given rawurl.
 func (s *AddressBook) Get(rawurl string) (*Service, bool) {
-	s.Mutex.Lock()
+	s.mutex.Lock()
 	val, found := s.entries[rawurl]
-	s.Mutex.Unlock()
+	s.mutex.Unlock()
 	return val, found
 }
 
@@ -214,21 +214,21 @@ commands:
 // DeleteService removes a service completely from an address book. It
 // is OK to pass non-existant rawurls to delete.
 func (s *AddressBook) DeleteService(rawurl string) {
-	s.Mutex.Lock()
+	s.mutex.Lock()
 	if service, ok := s.entries[rawurl]; ok {
 		service.Stop()
 		delete(s.entries, rawurl)
 	} else {
 		log.Print("no such entry to delete: ", rawurl)
 	}
-	s.Mutex.Unlock()
+	s.mutex.Unlock()
 	s.statusServer.Delete(rawurl)
 }
 
 // StartTickers starts the tickers on the associated services. This
 // might go away in the future
 func (s *AddressBook) StartTickers() {
-	s.Mutex.Lock()
+	s.mutex.Lock()
 	for _, service := range s.entries {
 		if service.running {
 			continue
@@ -257,15 +257,15 @@ func (s *AddressBook) StartTickers() {
 			}
 		}(service, &s.statusServer)
 	}
-	s.Mutex.Unlock()
+	s.mutex.Unlock()
 }
 
 func (s *AddressBook) stopTickers() {
-	s.Mutex.Lock()
+	s.mutex.Lock()
 	for _, service := range s.entries {
 		service.ticker.Stop()
 	}
-	s.Mutex.Unlock()
+	s.mutex.Unlock()
 }
 
 func (s *AddressBook) queueAlert(message *AlertMessage) {
@@ -273,19 +273,19 @@ func (s *AddressBook) queueAlert(message *AlertMessage) {
 		log.Fatal("don't queue null message alerts")
 	}
 
-	s.Mutex.Lock()
+	s.mutex.Lock()
 	s.alertMessages = append(s.alertMessages, *message)
-	s.Mutex.Unlock()
+	s.mutex.Unlock()
 }
 
 func (s *AddressBook) startAlerter() {
 	for range s.alertTicker.C {
 		if len(s.alertMessages) > 0 {
-			s.Mutex.Lock()
+			s.mutex.Lock()
 			var messages []AlertMessage
 			messages = s.alertMessages
 			s.alertMessages = make([]AlertMessage, 0)
-			s.Mutex.Unlock()
+			s.mutex.Unlock()
 
 			s.alerter(messages)
 		}
