@@ -33,10 +33,10 @@ const (
 	StopService = iota
 
 	// AddService adds a service to a running cynic instance
-	AddService = iota
+	AddService
 
 	// DeleteService removes a service from a running cynic instance
-	DeleteService = iota
+	DeleteService
 )
 
 // AlertFunc defines the hook signature for alert messages
@@ -56,11 +56,13 @@ type AlertMessage struct {
 // running and working
 type Session struct {
 	StatusPort string
-	SlackHook  *string
 	Services   []Service
 	Alerter    AlertFunc
 	AlertTime  int
 }
+
+// HookSignature specifies what the service hooks should look like.
+type HookSignature = func(*AddressBook, interface{}) (bool, interface{})
 
 // Service is some http service location that should be queried in a
 // specified amount of time.
@@ -81,7 +83,7 @@ type Session struct {
 type Service struct {
 	URL        url.URL
 	Secs       int
-	hooks      []interface{}
+	hooks      []HookSignature
 	ticker     *time.Ticker
 	running    bool
 	tickerChan chan int
@@ -98,7 +100,7 @@ type serviceError struct {
 type AddressBook struct {
 	entries      map[string]*Service
 	statusServer StatusServer
-	Mutex        *sync.Mutex
+	mutex        *sync.Mutex
 
 	alerter       AlertFunc
 	alertTicker   *time.Ticker
@@ -127,7 +129,7 @@ func AddressBookNew(session Session) *AddressBook {
 	addressBook := AddressBook{
 		entries:       entries,
 		statusServer:  statusServer,
-		Mutex:         &sync.Mutex{},
+		mutex:         &sync.Mutex{},
 		alerter:       session.Alerter,
 		alertTicker:   alertTicker,
 		alertMessages: alertMessages,
@@ -144,7 +146,9 @@ func AddressBookNew(session Session) *AddressBook {
 
 // AddService adds a service
 func (s *AddressBook) AddService(service *Service) {
-	s.Mutex.Lock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	rawurl := service.URL.String()
 	if entry, ok := s.entries[rawurl]; ok {
 		if entry.running {
@@ -152,14 +156,13 @@ func (s *AddressBook) AddService(service *Service) {
 		}
 	}
 	s.entries[rawurl] = &*service
-	s.Mutex.Unlock()
 }
 
 // Get gets a reference to the service with the given rawurl.
 func (s *AddressBook) Get(rawurl string) (*Service, bool) {
-	s.Mutex.Lock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	val, found := s.entries[rawurl]
-	s.Mutex.Unlock()
 	return val, found
 }
 
@@ -215,21 +218,24 @@ commands:
 // DeleteService removes a service completely from an address book. It
 // is OK to pass non-existant rawurls to delete.
 func (s *AddressBook) DeleteService(rawurl string) {
-	s.Mutex.Lock()
+	s.mutex.Lock()
 	if service, ok := s.entries[rawurl]; ok {
 		service.Stop()
 		delete(s.entries, rawurl)
 	} else {
 		log.Print("no such entry to delete: ", rawurl)
 	}
-	s.Mutex.Unlock()
+	s.mutex.Unlock()
+
 	s.statusServer.Delete(rawurl)
 }
 
 // StartTickers starts the tickers on the associated services. This
 // might go away in the future
 func (s *AddressBook) StartTickers() {
-	s.Mutex.Lock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	for _, service := range s.entries {
 		if service.running {
 			continue
@@ -258,15 +264,15 @@ func (s *AddressBook) StartTickers() {
 			}
 		}(service, &s.statusServer)
 	}
-	s.Mutex.Unlock()
 }
 
 func (s *AddressBook) stopTickers() {
-	s.Mutex.Lock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	for _, service := range s.entries {
 		service.ticker.Stop()
 	}
-	s.Mutex.Unlock()
 }
 
 func (s *AddressBook) queueAlert(message *AlertMessage) {
@@ -274,19 +280,20 @@ func (s *AddressBook) queueAlert(message *AlertMessage) {
 		log.Fatal("don't queue null message alerts")
 	}
 
-	s.Mutex.Lock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	s.alertMessages = append(s.alertMessages, *message)
-	s.Mutex.Unlock()
 }
 
 func (s *AddressBook) startAlerter() {
 	for range s.alertTicker.C {
 		if len(s.alertMessages) > 0 {
-			s.Mutex.Lock()
+			s.mutex.Lock()
 			var messages []AlertMessage
 			messages = s.alertMessages
 			s.alertMessages = make([]AlertMessage, 0)
-			s.Mutex.Unlock()
+			s.mutex.Unlock()
 
 			s.alerter(messages)
 		}
@@ -331,7 +338,7 @@ func ServiceNew(rawurl string, secs int) Service {
 	u, err := url.Parse(rawurl)
 	nilOrDie(err, "invalid http endpoint url")
 	ticker := time.NewTicker(time.Duration(secs) * time.Second)
-	hooks := make([]interface{}, 0)
+	hooks := make([]HookSignature, 0)
 	tchan := make(chan int)
 
 	return Service{
@@ -355,7 +362,7 @@ func (s *Service) Stop() {
 }
 
 // AddHook appends a hook to the service
-func (s *Service) AddHook(fn interface{}) {
+func (s *Service) AddHook(fn HookSignature) {
 	s.hooks = append(s.hooks, fn)
 }
 
@@ -388,7 +395,7 @@ func applyContracts(addressBook *AddressBook, s *Service, json *EndpointJSON) in
 
 	for i := 0; i < len(s.hooks); i++ {
 		hookName := getFuncName(s.hooks[i])
-		retAlert, hookRet := s.hooks[i].(func(*AddressBook, interface{}) (bool, interface{}))(addressBook, *json) // poetry
+		retAlert, hookRet := s.hooks[i](addressBook, *json)
 		sumAlerts = sumAlerts || retAlert
 
 		if res, ok := ret.HookResults[hookName]; ok {
