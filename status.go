@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -31,15 +32,21 @@ import (
 // services cynic will be observing
 type StatusServer struct {
 	contractResults *sync.Map
+	listener        net.Listener
 	server          *http.Server
 	alerter         *time.Ticker
 	wg              *sync.WaitGroup
+	root            string
 }
 
 const (
 	// StatusPort is the default port the status http server will
 	// respond on.
 	StatusPort = "9999"
+
+	// DefaultStatusEndpoint is where the default status json can
+	// be retrieved from
+	DefaultStatusEndpoint = "/status"
 
 	// statusPokeTime is how much time to check the map, and then if the
 	// map has entries, poke on the channel. This eventually has to be
@@ -48,7 +55,7 @@ const (
 )
 
 // StatusServerNew creates a new status server for cynic
-func StatusServerNew(port string) StatusServer {
+func StatusServerNew(port, root string) StatusServer {
 	server := &http.Server{
 		Addr:           ":" + port,
 		ReadTimeout:    10 * time.Second,
@@ -56,13 +63,29 @@ func StatusServerNew(port string) StatusServer {
 		MaxHeaderBytes: 1 << 20,
 	}
 
-	return StatusServer{&sync.Map{}, server, nil, nil}
+	listener, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		panic(err)
+	}
+
+	return StatusServer{
+		contractResults: &sync.Map{},
+		listener:        listener,
+		server:          server,
+		alerter:         nil,
+		wg:              nil,
+		root:            root,
+	}
 }
 
 // Start stats a new server. Should be running in the background.
 func (s *StatusServer) Start() {
-	http.HandleFunc("/status", s.makeResponse)
-	log.Print(s.server.ListenAndServe())
+	http.HandleFunc(s.root, s.makeResponse)
+	err := s.server.Serve(s.listener)
+
+	if err != http.ErrServerClosed {
+		log.Fatal("problem shutting down status http server: ", err)
+	}
 }
 
 // Stop gracefully shuts down the server
@@ -83,6 +106,22 @@ func (s *StatusServer) Delete(key string) {
 	s.contractResults.Delete(key)
 }
 
+// NumEntries returns the number of entries in the map
+func (s *StatusServer) NumEntries() (count int) {
+	s.contractResults.Range(func(_, _ interface{}) bool {
+		count++
+		return true
+	})
+	return
+}
+
+// GetPort this will return the port where the server was
+// started. This is useful if you assign port 0 when initializing.
+func (s *StatusServer) GetPort() int {
+	port := s.listener.Addr().(*net.TCPAddr).Port
+	return port
+}
+
 func (s *StatusServer) makeResponse(w http.ResponseWriter, _ *http.Request) {
 	var tmp map[string]interface{}
 	tmp = make(map[string]interface{})
@@ -101,13 +140,4 @@ func (s *StatusServer) makeResponse(w http.ResponseWriter, _ *http.Request) {
 	} else {
 		fmt.Fprintf(w, string(jsonEnc))
 	}
-}
-
-func countMap(m *sync.Map) int {
-	count := 0
-	m.Range(func(_, _ interface{}) bool {
-		count++
-		return true
-	})
-	return count
 }

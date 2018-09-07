@@ -117,7 +117,7 @@ func Start(session Session) {
 // AddressBookNew creates a new address book
 func AddressBookNew(session Session) *AddressBook {
 	entries := make(map[string]*Service)
-	statusServer := StatusServerNew(session.StatusPort)
+	statusServer := StatusServerNew(session.StatusPort, DefaultStatusEndpoint)
 
 	var alertTicker *time.Ticker
 	if session.Alerter != nil {
