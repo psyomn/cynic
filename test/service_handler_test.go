@@ -185,5 +185,45 @@ func TestAddServiceWithHook(t *testing.T) {
 }
 
 func TestSwapLocationsDynamically(t *testing.T) {
-	fmt.Println("TODO")
+	var count1, count2 int32
+
+	session := makeSession()
+	// session. // TODO change the status endpoint here?
+	book := cynic.AddressBookNew(session)
+
+	ts1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Boop")
+		atomic.AddInt32(&count1, 1)
+	}))
+
+	ts2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Baap")
+		atomic.AddInt32(&count2, 1)
+	}))
+
+	defer ts1.Close()
+	defer ts2.Close()
+
+	{
+		service := cynic.ServiceNew(ts1.URL, 1)
+		book.AddService(&service)
+	}
+
+	var ch chan int
+	signal = make(chan int)
+	go func() { book.Run(signal) }()
+
+	for atomic.LoadInt32(&count1) == 0 {
+	}
+
+	{
+		service := cynic.ServiceNew(ts2.URL, 1)
+		book.AddService(&service)
+		book.DeleteService(ts1.URL)
+	}
+
+	for atomic.LoadInt32(&count2) == 0 {
+	}
+
+	signal <- cynic.StopService
 }
