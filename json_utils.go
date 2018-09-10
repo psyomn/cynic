@@ -31,7 +31,7 @@ type EndpointJSON = interface{}
 type JSONPathSpec = string
 
 // ParseEndpointJSON parses the json returned from an endpoint.
-func ParseEndpointJSON(raw []byte) EndpointJSON {
+func parseEndpointJSON(raw []byte) EndpointJSON {
 	var result interface{}
 	error := json.Unmarshal(raw, &result)
 

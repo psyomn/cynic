@@ -327,7 +327,7 @@ func workerQuery(addressBook *AddressBook, s *Service, t *StatusServer) {
 		return
 	}
 
-	var json EndpointJSON = ParseEndpointJSON(body[:])
+	var json EndpointJSON = parseEndpointJSON(body[:])
 
 	results := applyContracts(addressBook, s, &json)
 	t.Update(address, results)
