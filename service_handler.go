@@ -52,10 +52,11 @@ type AlertMessage struct {
 // Session is the configuration a cynic instance requires to start
 // running and working
 type Session struct {
-	StatusPort string
-	Services   []Service
-	Alerter    AlertFunc
-	AlertTime  int
+	StatusPort     string
+	StatusEndpoint string
+	Services       []Service
+	Alerter        AlertFunc
+	AlertTime      int
 }
 
 // HookSignature specifies what the service hooks should look like.

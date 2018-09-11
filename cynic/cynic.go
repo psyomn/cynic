@@ -154,10 +154,11 @@ func main() {
 	fmt.Println("passing to session: ", services)
 
 	session := cynic.Session{
-		StatusPort: statusPort,
-		Services:   services,
-		Alerter:    exampleAlerter,
-		AlertTime:  20, // check status every 20 seconds
+		StatusPort:     statusPort,
+		StatusEndpoint: cynic.DefaultStatusEndpoint,
+		Services:       services,
+		Alerter:        exampleAlerter,
+		AlertTime:      20, // check status every 20 seconds
 	}
 
 	cynic.Start(session)

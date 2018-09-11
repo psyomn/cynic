@@ -37,7 +37,7 @@ type AddressBook struct {
 // AddressBookNew creates a new address book
 func AddressBookNew(session Session) *AddressBook {
 	entries := make(map[string]*Service)
-	statusServer := StatusServerNew(session.StatusPort, DefaultStatusEndpoint)
+	statusServer := StatusServerNew(session.StatusPort, session.StatusEndpoint)
 
 	var alertTicker *time.Ticker
 	if session.Alerter != nil {
