@@ -31,9 +31,10 @@ import (
 
 func makeSession() cynic.Session {
 	return cynic.Session{
-		StatusPort: cynic.StatusPort,
-		Alerter:    nil,
-		AlertTime:  0,
+		StatusEndpoint: cynic.DefaultStatusEndpoint,
+		StatusPort:     "0",
+		Alerter:        nil,
+		AlertTime:      0,
 	}
 }
 
@@ -185,5 +186,61 @@ func TestAddServiceWithHook(t *testing.T) {
 }
 
 func TestSwapLocationsDynamically(t *testing.T) {
-	fmt.Println("TODO")
+	var count1, count2 int32
+
+	session := makeSession()
+	session.StatusEndpoint = "/testswaplocationsdynamically/"
+
+	book := cynic.AddressBookNew(session)
+
+	ts1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "{}")
+		atomic.AddInt32(&count1, 1)
+	}))
+
+	ts2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "{}")
+		atomic.AddInt32(&count2, 1)
+	}))
+
+	defer ts1.Close()
+	defer ts2.Close()
+
+	{
+		fmt.Println("Add service: ", ts1.URL)
+		service := cynic.ServiceNew(ts1.URL, 1)
+		book.AddService(&service)
+	}
+
+	var signal chan int
+	signal = make(chan int)
+	go func() { book.Run(signal) }()
+
+	for atomic.LoadInt32(&count1) == 0 {
+	}
+
+	{
+		fmt.Println("delete service: ", ts1.URL)
+		book.DeleteService(ts1.URL)
+		fmt.Println("add service: ", ts2.URL)
+		service := cynic.ServiceNew(ts2.URL, 1)
+		book.AddService(&service)
+		book.StartTickers()
+	}
+
+	fmt.Println("ASDF")
+
+	for atomic.LoadInt32(&count2) == 0 {
+	}
+	fmt.Println("QWEQWE")
+
+	signal <- cynic.StopService
+}
+
+func NeedToFixThis() {
+	var count1 int32
+	httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Boop") // TODO: notice me senpai
+		atomic.AddInt32(&count1, 1)
+	}))
 }
