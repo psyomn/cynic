@@ -24,7 +24,7 @@ import (
 
 // Assert is a simple helper to see if something is true, and if not
 // raise failure.
-func Assert(t *testing.T, val bool) {
+func assert(t *testing.T, val bool) {
 	if !val {
 		t.Fail()
 	}

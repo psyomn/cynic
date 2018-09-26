@@ -43,4 +43,10 @@ test-all: vet
 	@echo -- build and run all tests
 	@GOMAXPROCS=4 go test -v -race ./...
 
+test-cover-anal:
+	@echo -- run cover analysis
+	go test -coverprofile cover.out ./...
+	go tool cover -html=cover.out -o cover.html
+.PHONY: test-cover-anal
+
 .PHONY:test-all
