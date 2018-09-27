@@ -34,18 +34,18 @@ func TestCRUD(t *testing.T) {
 	server.Update("hello", "kitty")
 	server.Update("goodbye", "human")
 	server.Update("blarrgh", "arggh")
-	Assert(t, server.NumEntries() == 3)
+	assert(t, server.NumEntries() == 3)
 
 	server.Delete("blarrgh")
-	Assert(t, server.NumEntries() == 2)
+	assert(t, server.NumEntries() == 2)
 
 	server.Delete("blarrgh")
-	Assert(t, server.NumEntries() == 2)
+	assert(t, server.NumEntries() == 2)
 
 	server.Update("potato", "tomato")
-	Assert(t, server.NumEntries() == 3)
+	assert(t, server.NumEntries() == 3)
 	server.Update("potato", "AAARGH")
-	Assert(t, server.NumEntries() == 3)
+	assert(t, server.NumEntries() == 3)
 }
 
 func TestRestEndpoint(t *testing.T) {
@@ -55,7 +55,7 @@ func TestRestEndpoint(t *testing.T) {
 	server.Update("hello", "kitty")
 	server.Update("whosagood", "doggo")
 	server.Update("ARGH", "BLARGH")
-	Assert(t, server.NumEntries() == 3)
+	assert(t, server.NumEntries() == 3)
 
 	port := strconv.Itoa(server.GetPort())
 
@@ -80,9 +80,9 @@ func TestRestEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Assert(t, values["hello"] == "kitty")
-	Assert(t, values["whosagood"] == "doggo")
-	Assert(t, values["ARGH"] == "BLARGH")
+	assert(t, values["hello"] == "kitty")
+	assert(t, values["whosagood"] == "doggo")
+	assert(t, values["ARGH"] == "BLARGH")
 
 	server.Stop()
 }

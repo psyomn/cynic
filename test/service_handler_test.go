@@ -49,25 +49,25 @@ func TestMakeService(t *testing.T) {
 
 func TestNumEntries(t *testing.T) {
 	services := cynic.AddressBookNew(makeSession())
-	Assert(t, services.NumEntries() == 0)
-	Assert(t, services.NumEntries() == 0)
+	assert(t, services.NumEntries() == 0)
+	assert(t, services.NumEntries() == 0)
 
 	{
 		service := cynic.ServiceNew("www.google.com", 60)
 		services.AddService(&service)
-		Assert(t, services.NumEntries() == 1)
+		assert(t, services.NumEntries() == 1)
 	}
 
 	{
 		service := cynic.ServiceNew("www.example.com", 60)
 		services.AddService(&service)
-		Assert(t, services.NumEntries() == 2)
+		assert(t, services.NumEntries() == 2)
 	}
 
 	{
 		service := cynic.ServiceNew("www.google.com", 60)
 		services.AddService(&service)
-		Assert(t, services.NumEntries() == 2)
+		assert(t, services.NumEntries() == 2)
 	}
 }
 
@@ -124,7 +124,7 @@ func TestIntegration(t *testing.T) {
 		if !ok {
 			t.Fatal("location should be in map")
 		}
-		Assert(t, service.NumHooks() == 3)
+		assert(t, service.NumHooks() == 3)
 	}
 
 	{ // get simple key/values
@@ -137,7 +137,7 @@ func TestIntegration(t *testing.T) {
 		services.AddService(&service)
 	}
 
-	Assert(t, services.NumEntries() == 3)
+	assert(t, services.NumEntries() == 3)
 
 	signal := make(chan int)
 	go func() { services.Run(signal) }()
@@ -161,7 +161,7 @@ func TestAddHook(t *testing.T) {
 		func(_ *cynic.AddressBook, entry interface{}) (bool, interface{}) {
 			return false, 42
 		})
-	Assert(t, service.NumHooks() == 1)
+	assert(t, service.NumHooks() == 1)
 }
 
 func TestAddServiceWithHook(t *testing.T) {
@@ -173,16 +173,16 @@ func TestAddServiceWithHook(t *testing.T) {
 
 	book := cynic.AddressBookNew(makeSession())
 	book.AddService(&service)
-	Assert(t, book.NumEntries() == 1)
+	assert(t, book.NumEntries() == 1)
 
 	getService, ok := book.Get(service.URL.String())
 	if !ok {
 		t.Fail()
 	}
 
-	Assert(t, getService.URL.String() == service.URL.String())
-	Assert(t, getService.Secs == service.Secs)
-	Assert(t, getService.NumHooks() == service.NumHooks())
+	assert(t, getService.URL.String() == service.URL.String())
+	assert(t, getService.Secs == service.Secs)
+	assert(t, getService.NumHooks() == service.NumHooks())
 }
 
 func TestSwapLocationsDynamically(t *testing.T) {
