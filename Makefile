@@ -36,7 +36,7 @@ test-cover: vet
 
 test-race: vet
 	@echo -- rerun all tests with race detector
-	@GOMAXPROCS=4 go test -test.short -race ./...
+	@GOMAXPROCS=4 go test -v -test.short -race ./...
 .PHONY: test-race
 
 test-all: vet

@@ -48,6 +48,7 @@ type Service struct {
 	tickerChan chan int
 	immediate  bool
 	offset     int
+	repeat     bool
 }
 
 // TODO make sure that this is used everywhere.
@@ -72,6 +73,7 @@ func ServiceNew(rawurl string, secs int) Service {
 		tickerChan: tchan,
 		immediate:  false,
 		offset:     0,
+		repeat:     false,
 	}
 }
 
@@ -101,4 +103,9 @@ func (s *Service) Immediate() {
 // Offset sets the time before the service starts ticking
 func (s *Service) Offset(offset int) {
 	s.offset = offset
+}
+
+// Repeat makes the service repeatable
+func (s *Service) Repeat(rep bool) {
+	s.repeat = rep
 }
