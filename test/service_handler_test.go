@@ -18,6 +18,7 @@ limitations under the License.
 
 package cynictesting
 
+/*
 import (
 	"fmt"
 	"net/http"
@@ -244,3 +245,4 @@ func NeedToFixThis() {
 		atomic.AddInt32(&count1, 1)
 	}))
 }
+*/
