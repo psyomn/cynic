@@ -41,7 +41,7 @@ test-race: vet
 
 test-all: vet
 	@echo -- build and run all tests
-	@GOMAXPROCS=4 go test -v -race ./...
+	@GOMAXPROCS=4 go test -race ./...
 
 test-cover-anal:
 	@echo -- run cover analysis
