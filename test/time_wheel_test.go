@@ -164,7 +164,6 @@ func TestAddRepeatedService(t *testing.T) {
 		wheel.Tick()
 	}
 
-	log.Printf("n(%d) == count(%d)\n", n, count)
 	assert(t, count == n)
 }
 
