@@ -134,7 +134,8 @@ func TestTickAll(t *testing.T) {
 		tickTestCase{"1 week", 7 * day},
 		tickTestCase{"1 week 1 sec", 7*day + 1*second},
 		tickTestCase{"1 week 15 minutes", 7*day + 15*minute},
-		tickTestCase{"1 month 1 hour", 30*day + 1*hour},
+		tickTestCase{"1 month 1 hour", 1*month + 1*hour},
+		tickTestCase{"11 months", 11 * month},
 	}
 
 	for _, c := range cases {
