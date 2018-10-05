@@ -99,7 +99,7 @@ func (s *Wheel) Tick() {
 // time. The expiry time is taken as 'time_now' +
 // service.seconds_to_expire
 func (s *Wheel) Add(service *Service) {
-	seconds := service.Secs
+	seconds := s.secsCnt + service.Secs
 
 	days := seconds / wheelSecondsInDay
 	if days > 365 {

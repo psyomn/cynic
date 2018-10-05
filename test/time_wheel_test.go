@@ -206,3 +206,43 @@ func TestTickSeconds(t *testing.T) {
 		t.Run(c.name, setupTimeTest(c.total, c.sec, c.min, c.hour, c.day))
 	}
 }
+
+func TestAddTickThenAddAgain(t *testing.T) {
+	var s1, s2 int
+	wheel := cynic.WheelNew()
+	service := cynic.ServiceNew("www.google.com", 10)
+	service.AddHook(
+		func(_ *cynic.AddressBook, _ interface{}) (_ bool, _ interface{}) {
+			s1 = 1
+			return false, 0
+		})
+
+	wheel.Add(&service)
+
+	wheel.Tick()
+	wheel.Tick()
+	wheel.Tick()
+
+	assert(t, s1 == 0 && s2 == 0)
+
+	nextService := cynic.ServiceNew("www.HAHAHA.com", 10)
+	nextService.AddHook(
+		func(_ *cynic.AddressBook, _ interface{}) (_ bool, _ interface{}) {
+			s2 = 1
+			return false, 0
+		})
+
+	wheel.Add(&nextService)
+
+	for i := 0; i < 8; i++ {
+		wheel.Tick()
+	}
+
+	assert(t, s1 == 1 && s2 == 0)
+
+	for i := 0; i < 4; i++ {
+		wheel.Tick()
+	}
+
+	assert(t, s1 == 1 && s2 == 1)
+}
