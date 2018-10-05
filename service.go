@@ -20,6 +20,7 @@ package cynic
 import (
 	"log"
 	"net/url"
+	"sync/atomic"
 	"time"
 )
 
@@ -49,7 +50,11 @@ type Service struct {
 	immediate  bool
 	offset     int
 	repeat     bool
+	Label      string
+	id         uint64
 }
+
+var lastID uint64
 
 // TODO make sure that this is used everywhere.
 type serviceError struct {
@@ -64,6 +69,8 @@ func ServiceNew(rawurl string, secs int) Service {
 	hooks := make([]HookSignature, 0)
 	tchan := make(chan int)
 
+	atomic.AddUint64(&lastID, 1)
+
 	return Service{
 		URL:        *u,
 		Secs:       secs,
@@ -74,6 +81,7 @@ func ServiceNew(rawurl string, secs int) Service {
 		immediate:  false,
 		offset:     0,
 		repeat:     false,
+		id:         lastID,
 	}
 }
 
@@ -113,4 +121,9 @@ func (s *Service) Repeat(rep bool) {
 // IsRepeating says whether a service repeats or not
 func (s *Service) IsRepeating() bool {
 	return s.repeat
+}
+
+// ID returns the unique identifier of the service
+func (s *Service) ID() uint64 {
+	return s.id
 }
