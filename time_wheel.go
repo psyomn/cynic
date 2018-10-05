@@ -56,7 +56,6 @@ type Wheel struct {
 // WheelNew creates a new, empty, timing wheel.
 func WheelNew() *Wheel {
 	var tw Wheel
-
 	return &tw
 }
 
@@ -71,7 +70,6 @@ func (s *Wheel) Tick() {
 
 	s.secsCnt++
 
-	// TODO: wheel rotation should be invoking timer placements here
 	if s.secsCnt >= wheelMaxSecs {
 		s.secsCnt = 0
 		s.rotateMinutes()
@@ -94,10 +92,12 @@ func (s *Wheel) Tick() {
 		// NEW year, wowoowowowowowoowow
 		s.daysCnt = 0
 	}
+
 }
 
 // Add puts a service in the timing wheel, with respect to its expiry
-// time. The expiry time is taken as 'time_now' + service.seconds_to_expire
+// time. The expiry time is taken as 'time_now' +
+// service.seconds_to_expire
 func (s *Wheel) Add(service *Service) {
 	seconds := service.Secs
 
@@ -171,6 +171,11 @@ func (s *Wheel) rotateMinutes() {
 }
 
 func (s *Wheel) rotateHours() {
+	for i := 0; i < len(s.secs); i++ {
+		var tb timerBuff
+		s.secs[i] = tb
+	}
+
 	for i := 0; i < len(s.mins); i++ {
 		var tb timerBuff
 		s.mins[i] = tb
@@ -179,28 +184,55 @@ func (s *Wheel) rotateHours() {
 	// for everything in 98d:12:XX:XX
 	for _, el := range s.hours[s.hoursCnt] {
 		index := ((el.Secs % wheelSecondsInHour) / wheelSecondsInMinute)
-		s.mins[index] = append(s.mins[index], el)
+		if index == 0 {
+			// dealing with seconds
+			secIndex := (el.Secs % wheelSecondsInHour)
+			s.secs[secIndex] = append(s.secs[secIndex], el)
+		} else {
+			index--
+			s.mins[index] = append(s.mins[index], el)
+		}
 	}
-
-	s.rotateMinutes()
 }
 
 func (s *Wheel) rotateDays() {
-	// for everything in 98d:XX:XX:XX
+	for i := 0; i < len(s.secs); i++ {
+		var tb timerBuff
+		s.secs[i] = tb
+	}
+
+	for i := 0; i < len(s.mins); i++ {
+		var tb timerBuff
+		s.mins[i] = tb
+	}
+
 	for i := 0; i < len(s.hours); i++ {
-		// TODO: maybe there's improvements here to be made
 		var tb timerBuff
 		s.hours[i] = tb
 	}
 
 	// for everything in 98d:XX:XX:XX
 	for _, el := range s.days[s.daysCnt] {
-		index := ((el.Secs % wheelSecondsInDay) / wheelSecondsInHour)
-		log.Println("day index: ", index)
-		s.mins[index] = append(s.mins[index], el)
-	}
+		// Place in hours
+		hourIndex := ((el.Secs % wheelSecondsInDay) / wheelSecondsInHour)
+		if hourIndex > 0 {
+			hourIndex--
+			s.hours[hourIndex] = append(s.hours[hourIndex], el)
+			continue
+		}
 
-	s.rotateHours()
+		// Place in minutes
+		minuteIndex := ((el.Secs % wheelSecondsInHour) / wheelSecondsInMinute)
+		if minuteIndex > 0 {
+			minuteIndex--
+			s.mins[minuteIndex] = append(s.mins[minuteIndex], el)
+			continue
+		}
+
+		// Place in seconds
+		secondIndex := (el.Secs % wheelSecondsInMinute)
+		s.secs[secondIndex] = append(s.secs[secondIndex], el)
+	}
 }
 
 // String makes a nice, printable format of the wheel, and timer

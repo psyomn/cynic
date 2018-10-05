@@ -121,8 +121,9 @@ func TestTickAll(t *testing.T) {
 		tickTestCase{"10 minutes", 10 * minute},
 		tickTestCase{"10 minutes 1 second", 10*minute + 1},
 		tickTestCase{"1 hour", 1 * hour},
-		tickTestCase{"1 hour 1 minute", 1*hour + 1*minute},
 		tickTestCase{"1 hour 1 second", 1*hour + 1*second},
+		tickTestCase{"1 hour 1 minute", 1*hour + 1*minute},
+		tickTestCase{"1 hour 1 minute 1 second", 1*hour + 1*minute + 1*second},
 		tickTestCase{"1 hour 59 second", 1*hour + 59*second},
 		tickTestCase{"1 hour 59 minute", 1*hour + 59*minute},
 		tickTestCase{"1 hour 59 minute 59 second", 1*hour + 59*minute + 59*second},
@@ -131,6 +132,9 @@ func TestTickAll(t *testing.T) {
 		tickTestCase{"1 day 1 second", 1*day + 1*second},
 		tickTestCase{"1 day 59 second", 1*day + 59*second},
 		tickTestCase{"1 week", 7 * day},
+		tickTestCase{"1 week 1 sec", 7*day + 1*second},
+		tickTestCase{"1 week 15 minutes", 7*day + 15*minute},
+		tickTestCase{"1 month 1 hour", 30*day + 1*hour},
 	}
 
 	for _, c := range cases {
@@ -162,31 +166,31 @@ func TestAddRepeatedService(t *testing.T) {
 	assert(t, count == n)
 }
 
-type wheelTestCase struct {
-	name  string
-	total int
-	sec   int
-	min   int
-	hour  int
-	day   int
-}
-
-func setupTimeTest(totalSecs, sec, min, hour, day int) func(t *testing.T) {
-	return func(t *testing.T) {
-		tw := cynic.WheelNew()
-
-		for i := 1; i <= totalSecs; i++ {
-			tw.Tick()
-		}
-
-		assert(t, tw.Seconds() == sec)
-		assert(t, tw.Minutes() == min)
-		assert(t, tw.Hours() == hour)
-		assert(t, tw.Days() == day)
-	}
-}
-
 func TestTickSeconds(t *testing.T) {
+	setupTimeTest := func(totalSecs, sec, min, hour, day int) func(t *testing.T) {
+		return func(t *testing.T) {
+			tw := cynic.WheelNew()
+
+			for i := 1; i <= totalSecs; i++ {
+				tw.Tick()
+			}
+
+			assert(t, tw.Seconds() == sec)
+			assert(t, tw.Minutes() == min)
+			assert(t, tw.Hours() == hour)
+			assert(t, tw.Days() == day)
+		}
+	}
+
+	type wheelTestCase struct {
+		name  string
+		total int
+		sec   int
+		min   int
+		hour  int
+		day   int
+	}
+
 	cases := []wheelTestCase{
 		wheelTestCase{"15 seconds", 15, 15, 0, 0, 0},
 		wheelTestCase{"1 minute", 60, 0, 1, 0, 0},
@@ -200,16 +204,4 @@ func TestTickSeconds(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, setupTimeTest(c.total, c.sec, c.min, c.hour, c.day))
 	}
-}
-
-func TestMinuteRotation(t *testing.T) {
-	t.Fatal("implement")
-}
-
-func TestHourRotation(t *testing.T) {
-	t.Fatal("implement")
-}
-
-func TestDayRotation(t *testing.T) {
-	t.Fatal("implement")
 }
