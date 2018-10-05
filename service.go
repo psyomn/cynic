@@ -109,3 +109,8 @@ func (s *Service) Offset(offset int) {
 func (s *Service) Repeat(rep bool) {
 	s.repeat = rep
 }
+
+// IsRepeating says whether a service repeats or not
+func (s *Service) IsRepeating() bool {
+	return s.repeat
+}

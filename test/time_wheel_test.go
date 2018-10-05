@@ -160,10 +160,11 @@ func TestAddRepeatedService(t *testing.T) {
 	wheel.Add(&service)
 
 	n := 3
-	for i := 0; i < time*n; i++ {
+	for i := 0; i < (time*n)+1; i++ {
 		wheel.Tick()
 	}
 
+	log.Printf("n(%d) == count(%d)\n", n, count)
 	assert(t, count == n)
 }
 

@@ -63,8 +63,13 @@ func WheelNew() *Wheel {
 func (s *Wheel) Tick() {
 	for _, service := range s.secs[s.secsCnt] {
 		// TODO: worker pool will be much nicer here
+
+		// expire timer
 		for _, hook := range service.hooks {
 			hook(nil, nil)
+			if service.IsRepeating() {
+				s.Add(service)
+			}
 		}
 	}
 
