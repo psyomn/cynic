@@ -20,6 +20,7 @@ package cynic
 import (
 	"log"
 	"strconv"
+	"time"
 )
 
 type timerBuff = []*Service
@@ -162,6 +163,53 @@ func (s *Wheel) Days() int {
 	return s.daysCnt
 }
 
+// String makes a nice, printable format of the wheel, and timer
+// counts
+func (s *Wheel) String() string {
+	var str string
+
+	str += "s| "
+	for _, el := range s.secs {
+		str += strconv.Itoa(len(el)) + " "
+	}
+	str += "\n"
+
+	str += "m| "
+	for _, el := range s.mins {
+		str += strconv.Itoa(len(el)) + " "
+	}
+	str += "\n"
+
+	str += "h| "
+	for _, el := range s.hours {
+		str += strconv.Itoa(len(el))
+		str += " "
+	}
+	str += "\n"
+
+	str += "d| "
+	for _, el := range s.days {
+		str += strconv.Itoa(len(el))
+		str += " "
+	}
+	str += "\n"
+
+	return str
+}
+
+// Run runs the wheel, with a 1s tick
+func (s *Wheel) Run() {
+	ticker := time.NewTicker(time.Second)
+	go func() {
+		for range ticker.C {
+			s.Tick()
+		}
+	}()
+	defer ticker.Stop()
+}
+
+//// -- Private --
+
 func (s *Wheel) rotateMinutes() {
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
@@ -238,38 +286,4 @@ func (s *Wheel) rotateDays() {
 		secondIndex := (el.Secs % wheelSecondsInMinute)
 		s.secs[secondIndex] = append(s.secs[secondIndex], el)
 	}
-}
-
-// String makes a nice, printable format of the wheel, and timer
-// counts
-func (s *Wheel) String() string {
-	var str string
-
-	str += "s| "
-	for _, el := range s.secs {
-		str += strconv.Itoa(len(el)) + " "
-	}
-	str += "\n"
-
-	str += "m| "
-	for _, el := range s.mins {
-		str += strconv.Itoa(len(el)) + " "
-	}
-	str += "\n"
-
-	str += "h| "
-	for _, el := range s.hours {
-		str += strconv.Itoa(len(el))
-		str += " "
-	}
-	str += "\n"
-
-	str += "d| "
-	for _, el := range s.days {
-		str += strconv.Itoa(len(el))
-		str += " "
-	}
-	str += "\n"
-
-	return str
 }
