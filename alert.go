@@ -1,5 +1,5 @@
 /*
-Package cynic_testing tests that it can monitor you from the ceiling.
+Package cynic monitors you from the ceiling.
 
 Copyright 2018 Simon Symeonidis (psyomn)
 
@@ -15,21 +15,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+package cynic
 
-package cynictesting
+// AlertFunc defines the hook signature for alert messages
+type AlertFunc = func([]AlertMessage)
 
-import (
-	"testing"
-
-	"github.com/psyomn/cynic"
-)
-
-func TestServiceIdIncreaseMonotonically(t *testing.T) {
-	s1 := cynic.ServiceJSONNew("www.google.com", 1)
-	s2 := cynic.ServiceJSONNew("www.hahaha.com", 2)
-	s3 := cynic.ServiceJSONNew("www.derp.com", 3)
-
-	assert(t, s1.ID() != s2.ID() &&
-		s1.ID() != s3.ID() &&
-		s2.ID() != s3.ID())
+// AlertMessage defines a simple alert structure that can be used by
+// users of the library, and decide how to show information about the
+// alerts.
+type AlertMessage struct {
+	Response      interface{} `json:"response_text"`
+	Endpoint      string      `json:"endpoint"`
+	Now           string      `json:"now"`
+	CynicHostname string      `json:"cynic_hostname"`
 }

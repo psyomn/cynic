@@ -67,7 +67,7 @@ func (s *Wheel) Tick() {
 
 		// expire timer
 		for _, hook := range service.hooks {
-			hook(nil, nil)
+			hook(nil)
 			if service.IsRepeating() {
 				s.Add(service)
 			}
@@ -105,7 +105,7 @@ func (s *Wheel) Tick() {
 // time. The expiry time is taken as 'time_now' +
 // service.seconds_to_expire
 func (s *Wheel) Add(service *Service) {
-	seconds := s.secsCnt + service.Secs
+	seconds := s.secsCnt + service.secs
 
 	days := seconds / wheelSecondsInDay
 	if days > 365 {
@@ -218,7 +218,7 @@ func (s *Wheel) rotateMinutes() {
 
 	// For everything in 98d:12:34:XX
 	for _, el := range s.mins[s.minsCnt] {
-		index := el.Secs % wheelMaxSecs
+		index := el.secs % wheelMaxSecs
 		s.secs[index] = append(s.secs[index], el)
 	}
 }
@@ -236,10 +236,10 @@ func (s *Wheel) rotateHours() {
 
 	// for everything in 98d:12:XX:XX
 	for _, el := range s.hours[s.hoursCnt] {
-		index := ((el.Secs % wheelSecondsInHour) / wheelSecondsInMinute)
+		index := ((el.secs % wheelSecondsInHour) / wheelSecondsInMinute)
 		if index == 0 {
 			// dealing with seconds
-			secIndex := (el.Secs % wheelSecondsInHour)
+			secIndex := (el.secs % wheelSecondsInHour)
 			s.secs[secIndex] = append(s.secs[secIndex], el)
 		} else {
 			index--
@@ -267,7 +267,7 @@ func (s *Wheel) rotateDays() {
 	// for everything in 98d:XX:XX:XX
 	for _, el := range s.days[s.daysCnt] {
 		// Place in hours
-		hourIndex := ((el.Secs % wheelSecondsInDay) / wheelSecondsInHour)
+		hourIndex := ((el.secs % wheelSecondsInDay) / wheelSecondsInHour)
 		if hourIndex > 0 {
 			hourIndex--
 			s.hours[hourIndex] = append(s.hours[hourIndex], el)
@@ -275,7 +275,7 @@ func (s *Wheel) rotateDays() {
 		}
 
 		// Place in minutes
-		minuteIndex := ((el.Secs % wheelSecondsInHour) / wheelSecondsInMinute)
+		minuteIndex := ((el.secs % wheelSecondsInHour) / wheelSecondsInMinute)
 		if minuteIndex > 0 {
 			minuteIndex--
 			s.mins[minuteIndex] = append(s.mins[minuteIndex], el)
@@ -283,7 +283,7 @@ func (s *Wheel) rotateDays() {
 		}
 
 		// Place in seconds
-		secondIndex := (el.Secs % wheelSecondsInMinute)
+		secondIndex := (el.secs % wheelSecondsInMinute)
 		s.secs[secondIndex] = append(s.secs[secondIndex], el)
 	}
 }

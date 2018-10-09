@@ -87,7 +87,7 @@ type result struct {
 // You need to respect this interface so that you can bind hooks to
 // your services. You can return a struct with json hints as shown
 // bellow, and cynic will add that to the /status endpoint.
-func exampleHook(s *cynic.AddressBook, resp interface{}) (alert bool, data interface{}) {
+func exampleHook(resp interface{}) (alert bool, data interface{}) {
 	fmt.Println("Firing the example hook yay!")
 	return false, result{
 		Alert:   true,
@@ -96,7 +96,7 @@ func exampleHook(s *cynic.AddressBook, resp interface{}) (alert bool, data inter
 }
 
 // Another example hook
-func anotherExampleHook(c *cynic.AddressBook, resp interface{}) (alert bool, data interface{}) {
+func anotherExampleHook(resp interface{}) (alert bool, data interface{}) {
 	fmt.Println("Firing example hook 2 yay!")
 	return false, result{
 		Alert:   true,
@@ -104,7 +104,7 @@ func anotherExampleHook(c *cynic.AddressBook, resp interface{}) (alert bool, dat
 	}
 }
 
-func finalHook(c *cynic.AddressBook, resp interface{}) (alert bool, data interface{}) {
+func finalHook(resp interface{}) (alert bool, data interface{}) {
 	fmt.Println("IT'S THE FINAL HOOKDOWN")
 	return false, result{
 		Alert:   false,
@@ -131,9 +131,9 @@ func main() {
 	log.Printf("status-port: %s\n", statusPort)
 
 	var services []cynic.Service
-	services = append(services, cynic.ServiceNew("http://localhost:9001/one", 1))
-	services = append(services, cynic.ServiceNew("http://localhost:9001/two", 1))
-	services = append(services, cynic.ServiceNew("http://localhost:9001/flappyerror", 1))
+	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/one", 1))
+	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/two", 1))
+	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/flappyerror", 1))
 
 	services[0].AddHook(exampleHook)
 	services[0].AddHook(anotherExampleHook)

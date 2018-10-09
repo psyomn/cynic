@@ -38,16 +38,16 @@ func TestAdd(t *testing.T) {
 	wheel := cynic.WheelNew()
 
 	// Test most edge cases
-	serviceSecs := cynic.ServiceNew("www.google.com", 1)
-	serviceMaxSecs := cynic.ServiceNew("www.google.com", 59)
+	serviceSecs := cynic.ServiceJSONNew("www.google.com", 1)
+	serviceMaxSecs := cynic.ServiceJSONNew("www.google.com", 59)
 
-	serviceMinute := cynic.ServiceNew("www.google.com", 60)
-	serviceMaxMinute := cynic.ServiceNew("www.google.com", 60*60-1)
+	serviceMinute := cynic.ServiceJSONNew("www.google.com", 60)
+	serviceMaxMinute := cynic.ServiceJSONNew("www.google.com", 60*60-1)
 
-	serviceHour := cynic.ServiceNew("www.google.com", 60*60)
-	serviceMaxHour := cynic.ServiceNew("www.google.com", 23*60*60+60*59+59) // 23:59:59
+	serviceHour := cynic.ServiceJSONNew("www.google.com", 60*60)
+	serviceMaxHour := cynic.ServiceJSONNew("www.google.com", 23*60*60+60*59+59) // 23:59:59
 
-	service := cynic.ServiceNew("www.google.com", 3*60*60+33*60+33)
+	service := cynic.ServiceJSONNew("www.google.com", 3*60*60+33*60+33)
 
 	services := [...]cynic.Service{
 		serviceSecs,
@@ -73,8 +73,8 @@ func TestTickAll(t *testing.T) {
 			isExpired := false
 
 			time := givenTime
-			service := cynic.ServiceNew("www.google.com", time)
-			service.AddHook(func(_ *cynic.AddressBook, _ interface{}) (_ bool, _ interface{}) {
+			service := cynic.ServiceJSONNew("www.google.com", time)
+			service.AddHook(func(_ interface{}) (_ bool, _ interface{}) {
 				isExpired = true
 				return false, 0
 			})
@@ -149,9 +149,9 @@ func TestAddRepeatedService(t *testing.T) {
 	var time int
 	time = 10
 
-	service := cynic.ServiceNew("www.google.com", time)
+	service := cynic.ServiceJSONNew("www.google.com", time)
 	service.Repeat(true)
-	service.AddHook(func(_ *cynic.AddressBook, _ interface{}) (_ bool, _ interface{}) {
+	service.AddHook(func(_ interface{}) (_ bool, _ interface{}) {
 		count++
 		return false, 0
 	})
@@ -210,9 +210,9 @@ func TestTickSeconds(t *testing.T) {
 func TestAddTickThenAddAgain(t *testing.T) {
 	var s1, s2 int
 	wheel := cynic.WheelNew()
-	service := cynic.ServiceNew("www.google.com", 10)
+	service := cynic.ServiceJSONNew("www.google.com", 10)
 	service.AddHook(
-		func(_ *cynic.AddressBook, _ interface{}) (_ bool, _ interface{}) {
+		func(_ interface{}) (_ bool, _ interface{}) {
 			s1 = 1
 			return false, 0
 		})
@@ -225,9 +225,9 @@ func TestAddTickThenAddAgain(t *testing.T) {
 
 	assert(t, s1 == 0 && s2 == 0)
 
-	nextService := cynic.ServiceNew("www.HAHAHA.com", 10)
+	nextService := cynic.ServiceJSONNew("www.HAHAHA.com", 10)
 	nextService.AddHook(
-		func(_ *cynic.AddressBook, _ interface{}) (_ bool, _ interface{}) {
+		func(_ interface{}) (_ bool, _ interface{}) {
 			s2 = 1
 			return false, 0
 		})
@@ -245,4 +245,34 @@ func TestAddTickThenAddAgain(t *testing.T) {
 	}
 
 	assert(t, s1 == 1 && s2 == 1)
+}
+
+func TestServiceOffset(t *testing.T) {
+	run := false
+	wheel := cynic.WheelNew()
+	s := cynic.ServiceJSONNew("www.google.com", 3)
+
+	s.Offset(2)
+	s.AddHook(func(_ interface{}) (_ bool, _ interface{}) {
+		run = true
+		return false, 0
+	})
+
+	assert(t, !run)
+
+	wheel.Tick()
+	wheel.Tick()
+	assert(t, !run)
+
+	for i := 0; i < 3; i++ {
+		wheel.Tick()
+	}
+
+	assert(t, run)
+}
+
+func TestServiceImmediate(t *testing.T) {
+	s := cynic.ServiceJSONNew("www.google.com", 12)
+	w := cynic.WheelNew()
+	w.Add(&s)
 }
