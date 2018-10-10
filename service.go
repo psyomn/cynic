@@ -19,7 +19,9 @@ package cynic
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"net/url"
 	"sync/atomic"
 )
@@ -34,6 +36,9 @@ const (
 	// for these endpoints.
 	ServiceCustom
 )
+
+// HookSignature specifies what the service hooks should look like.
+type HookSignature = func(*StatusServer) (bool, interface{})
 
 // Service is some http service location that should be queried in a
 // specified amount of time.
@@ -51,6 +56,7 @@ const (
 // - A service is an action
 // - A service can have many:
 //   - hooks (that can act as contracts)
+// - A service is bound to a data repository/cache
 type Service struct {
 	url       *url.URL
 	secs      int
@@ -152,12 +158,23 @@ func (s *Service) UniqStr() string {
 	return fmt.Sprintf("%s-%d", *s.Label, s.id)
 }
 
-// Execute the service -- if it has a json rest endpoint, it will do
-// that, if not the hooks.
+// DataRepo sets where the data processed should be stored in
+func (s *Service) DataRepo(repo *StatusServer) {
+	s.repo = repo
+}
+
+// Execute the service
 func (s *Service) Execute() {
-	if s.url {
-		// If there is a url specified, then fetch the data,
-		// and possibly store it
+	// TODO this should eventually be split into something else
+	// (ie services should have some sort)
+	if s.url != nil && s.repo != nil {
+		// If there is a url and repo specified, then fetch
+		// the data and store it
+		workerQuery(s, s.repo)
+	}
+
+	for _, hook := range s.hooks {
+		hook(s.repo)
 	}
 }
 
@@ -198,53 +215,53 @@ func workerQuery(s *Service, t *StatusServer) {
 }
 
 // TODO this could probably be a object method instead...
-func applyContracts(s *Service, json *EndpointJSON) interface{} {
-	type result struct {
-		HookResults map[string]interface{} `json:"hooks"`
-		Timestamp   int64                  `json:"timestamp"`
-		HumanTime   string                 `json:"human_time"`
-		Alert       bool                   `json:"alert"`
-	}
-
-	var ret result
-	sumAlerts := false
-	ret.HookResults = make(map[string]interface{})
-
-	for i := 0; i < len(s.hooks); i++ {
-		hookName := getFuncName(s.hooks[i])
-		retAlert, hookRet := s.hooks[i](*json)
-		sumAlerts = sumAlerts || retAlert
-
-		if res, ok := ret.HookResults[hookName]; ok {
-			tempResult := res.(result)
-			tempResult.HookResults[hookName] = hookRet
-			tempResult.Timestamp = time.Now().Unix()
-			ret.HookResults[hookName] = tempResult
-			ret.Alert = retAlert
-		} else {
-			ret.HookResults[hookName] = hookRet
-			ret.Timestamp = time.Now().Unix()
-			ret.HumanTime = time.Now().Format(time.RFC850)
-			ret.Alert = retAlert
-		}
-	}
-
-	if sumAlerts {
-		hostname, err := os.Hostname()
-		if err != nil {
-			hostname = "nohost"
-		}
-		message := AlertMessage{
-			Endpoint:      s.url.String(),
-			Response:      ret,
-			CynicHostname: hostname,
-			Now:           time.Now().Format(time.RFC850),
-		}
-
-		// TODO, need a better alerting mechanism
-		log.Println("This would be added to the queue alert thingy: ", message)
-		// addressBook.queueAlert(&message)
-	}
-
-	return ret
-}
+// func applyContracts(s *Service, json *EndpointJSON) interface{} {
+// 	type result struct {
+// 		HookResults map[string]interface{} `json:"hooks"`
+// 		Timestamp   int64                  `json:"timestamp"`
+// 		HumanTime   string                 `json:"human_time"`
+// 		Alert       bool                   `json:"alert"`
+// 	}
+//
+// 	var ret result
+// 	sumAlerts := false
+// 	ret.HookResults = make(map[string]interface{})
+//
+// 	for i := 0; i < len(s.hooks); i++ {
+// 		hookName := getFuncName(s.hooks[i])
+// 		retAlert, hookRet := s.hooks[i](*json)
+// 		sumAlerts = sumAlerts || retAlert
+//
+// 		if res, ok := ret.HookResults[hookName]; ok {
+// 			tempResult := res.(result)
+// 			tempResult.HookResults[hookName] = hookRet
+// 			tempResult.Timestamp = time.Now().Unix()
+// 			ret.HookResults[hookName] = tempResult
+// 			ret.Alert = retAlert
+// 		} else {
+// 			ret.HookResults[hookName] = hookRet
+// 			ret.Timestamp = time.Now().Unix()
+// 			ret.HumanTime = time.Now().Format(time.RFC850)
+// 			ret.Alert = retAlert
+// 		}
+// 	}
+//
+// 	if sumAlerts {
+// 		hostname, err := os.Hostname()
+// 		if err != nil {
+// 			hostname = "nohost"
+// 		}
+// 		message := AlertMessage{
+// 			Endpoint:      s.url.String(),
+// 			Response:      ret,
+// 			CynicHostname: hostname,
+// 			Now:           time.Now().Format(time.RFC850),
+// 		}
+//
+// 		// TODO, need a better alerting mechanism
+// 		log.Println("This would be added to the queue alert thingy: ", message)
+// 		// addressBook.queueAlert(&message)
+// 	}
+//
+// 	return ret
+// }

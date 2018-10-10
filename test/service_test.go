@@ -19,6 +19,9 @@ limitations under the License.
 package cynictesting
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/psyomn/cynic"
@@ -32,4 +35,51 @@ func TestServiceIdIncreaseMonotonically(t *testing.T) {
 	assert(t, s1.ID() != s2.ID() &&
 		s1.ID() != s3.ID() &&
 		s2.ID() != s3.ID())
+}
+
+func TestServiceWithQueryAndRepo(t *testing.T) {
+	ran := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "{}")
+		ran = true
+	}))
+	defer ts.Close()
+
+	ser := cynic.ServiceJSONNew(ts.URL, 1)
+	repo := cynic.StatusServerNew("0", "/status/testservicewithqueryandrepo")
+	ser.DataRepo(&repo)
+
+	ser.Execute()
+
+	assert(t, ran)
+}
+
+func TestServiceWithQueryNoRepo(t *testing.T) {
+	ran := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "{}")
+		ran = true
+	}))
+	defer ts.Close()
+
+	ser := cynic.ServiceJSONNew(ts.URL, 1)
+	repo := cynic.StatusServerNew("0", "/status/testservicewithquerynorepo")
+	ser.DataRepo(&repo)
+
+	ser.Execute()
+
+	assert(t, ran)
+}
+
+func TestServiceExecution(t *testing.T) {
+	ran := false
+	ser := cynic.ServiceNew(1)
+	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+		ran = true
+		return false, 0
+	})
+
+	ser.Execute()
+
+	assert(t, ran)
 }

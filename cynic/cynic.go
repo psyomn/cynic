@@ -87,7 +87,7 @@ type result struct {
 // You need to respect this interface so that you can bind hooks to
 // your services. You can return a struct with json hints as shown
 // bellow, and cynic will add that to the /status endpoint.
-func exampleHook(resp interface{}) (alert bool, data interface{}) {
+func exampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 	fmt.Println("Firing the example hook yay!")
 	return false, result{
 		Alert:   true,
@@ -96,7 +96,7 @@ func exampleHook(resp interface{}) (alert bool, data interface{}) {
 }
 
 // Another example hook
-func anotherExampleHook(resp interface{}) (alert bool, data interface{}) {
+func anotherExampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 	fmt.Println("Firing example hook 2 yay!")
 	return false, result{
 		Alert:   true,
@@ -104,7 +104,7 @@ func anotherExampleHook(resp interface{}) (alert bool, data interface{}) {
 	}
 }
 
-func finalHook(resp interface{}) (alert bool, data interface{}) {
+func finalHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 	fmt.Println("IT'S THE FINAL HOOKDOWN")
 	return false, result{
 		Alert:   false,
@@ -131,6 +131,7 @@ func main() {
 	log.Printf("status-port: %s\n", statusPort)
 
 	var services []cynic.Service
+
 	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/one", 1))
 	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/two", 1))
 	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/flappyerror", 1))
@@ -153,12 +154,22 @@ func main() {
 
 	fmt.Println("passing to session: ", services)
 
+	// TODO these are no longer set in stone -- can have multiple
+	// status servers...
+	//
+	// StatusPort:     statusPort,
+	// StatusEndpoint: cynic.DefaultStatusEndpoint,
+
+	statusServer := cynic.StatusServerNew(statusPort, cynic.DefaultStatusEndpoint)
+
+	for _, ser := range services {
+		ser.DataRepo(&statusServer)
+	}
+
 	session := cynic.Session{
-		StatusPort:     statusPort,
-		StatusEndpoint: cynic.DefaultStatusEndpoint,
-		Services:       services,
-		Alerter:        exampleAlerter,
-		AlertTime:      20, // check status every 20 seconds
+		Services:  services,
+		Alerter:   exampleAlerter,
+		AlertTime: 20, // check status every 20 seconds
 	}
 
 	cynic.Start(session)

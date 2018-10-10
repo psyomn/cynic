@@ -20,6 +20,7 @@ package cynic
 import (
 	"log"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -62,16 +63,10 @@ func WheelNew() *Wheel {
 
 // Tick moves the cursor of the timing wheel, by one second.
 func (s *Wheel) Tick() {
+	var wg sync.WaitGroup
 	for _, service := range s.secs[s.secsCnt] {
-		// TODO: worker pool will be much nicer here
-
-		// expire timer
-		for _, hook := range service.hooks {
-			hook(nil)
-			if service.IsRepeating() {
-				s.Add(service)
-			}
-		}
+		// TODO: worker pool will be much nicer her
+		service.Execute()
 	}
 
 	s.secsCnt++

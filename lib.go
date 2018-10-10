@@ -18,14 +18,7 @@ limitations under the License.
 */
 package cynic
 
-import (
-	"fmt"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"os"
-	"time"
-)
+import ()
 
 const (
 	// StopService is the signal to stop the running querying service
@@ -41,15 +34,10 @@ const (
 // Session is the configuration a cynic instance requires to start
 // running and working
 type Session struct {
-	StatusPort     string
-	StatusEndpoint string
-	Services       []Service
-	Alerter        AlertFunc
-	AlertTime      int
+	Services  []Service
+	Alerter   AlertFunc
+	AlertTime int
 }
-
-// HookSignature specifies what the service hooks should look like.
-type HookSignature = func(interface{}) (bool, interface{})
 
 // Start starts a cynic instance, with any provided hooks.
 func Start(session Session) {
