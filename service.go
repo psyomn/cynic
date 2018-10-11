@@ -128,8 +128,13 @@ func (s *Service) NumHooks() int {
 }
 
 // Immediate will make the service run immediately
-func (s *Service) Immediate() {
-	s.immediate = true
+func (s *Service) Immediate(val bool) {
+	s.immediate = val
+}
+
+// IsImmediate returns true if service is immediate
+func (s *Service) IsImmediate() bool {
+	return s.immediate
 }
 
 // Offset sets the time before the service starts ticking

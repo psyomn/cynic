@@ -248,31 +248,81 @@ func TestAddTickThenAddAgain(t *testing.T) {
 }
 
 func TestServiceOffset(t *testing.T) {
-	run := false
+	secs := 3
+	offsetTime := 2
+	ran := false
 	wheel := cynic.WheelNew()
-	s := cynic.ServiceJSONNew("www.google.com", 3)
 
-	s.Offset(2)
+	s := cynic.ServiceNew(secs)
+	s.Offset(offsetTime)
+
+	wheel.Add(&s)
+
 	s.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
-		run = true
+		ran = true
 		return false, 0
 	})
 
-	assert(t, !run)
+	assert(t, !ran)
 
 	wheel.Tick()
 	wheel.Tick()
-	assert(t, !run)
+	assert(t, !ran)
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < secs; i++ {
 		wheel.Tick()
 	}
 
-	assert(t, run)
+	assert(t, ran)
 }
 
 func TestServiceImmediate(t *testing.T) {
-	s := cynic.ServiceJSONNew("www.google.com", 12)
+	var count int
+	time := 12
+	s := cynic.ServiceNew(time)
+	s.Immediate(true)
+	s.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+		count++
+		return false, 0
+	})
+
 	w := cynic.WheelNew()
 	w.Add(&s)
+
+	w.Tick()
+	w.Tick()
+	assert(t, count == 1)
+
+	for i := 0; i < time*10; i++ {
+		w.Tick()
+	}
+
+	assert(t, count == 1)
+}
+
+func TestServiceImmediateWithRepeat(t *testing.T) {
+	var count int
+	time := 12
+
+	s := cynic.ServiceNew(time)
+	s.Immediate(true)
+	s.Repeat(true)
+	s.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+		count++
+		return false, 0
+	})
+
+	w := cynic.WheelNew()
+	w.Add(&s)
+
+	w.Tick()
+	w.Tick()
+
+	assert(t, count == 1)
+
+	for i := 0; i < time; i++ {
+		w.Tick()
+	}
+
+	assert(t, count == 2)
 }
