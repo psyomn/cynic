@@ -45,4 +45,14 @@ func Start(session Session) {
 	// addressBook := AddressBookNew(session)
 	// signal := make(chan int)
 	// addressBook.Run(signal)
+
+	wheel := WheelNew()
+
+	for _, ser := range session.Services {
+		wheel.Add(&ser)
+	}
+}
+
+func runWheel(wheel *Wheel) {
+
 }

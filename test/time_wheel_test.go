@@ -104,10 +104,6 @@ func TestTickAll(t *testing.T) {
 	}
 
 	cases := [...]tickTestCase{
-		// TODO: eventually this should be supported. This is
-		//   panicking because this inits a ticker with value 0,
-		//   which makes no sense.
-		// tickTestCase{"0 seconds", 0 * second},
 		tickTestCase{"1 second", 1 * second},
 		tickTestCase{"10 seconds", 10 * second},
 		tickTestCase{"59 seconds", 59 * second},
