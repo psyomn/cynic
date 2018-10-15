@@ -52,6 +52,8 @@ type Wheel struct {
 	minsCnt  int
 	hoursCnt int
 	daysCnt  int
+
+	ticks int
 }
 
 // WheelNew creates a new, empty, timing wheel.
@@ -68,7 +70,11 @@ func (s *Wheel) Tick() {
 		//   tricky for now
 		service.Execute()
 		if service.IsRepeating() {
+			log.Println("re-add + _wheel.go_ secscnt: ", s.secsCnt)
+			log.Println("wheel-tick: ", s.ticks)
+			log.Println("service data: ", service)
 			s.Add(service)
+
 		}
 	}
 
@@ -97,6 +103,9 @@ func (s *Wheel) Tick() {
 		s.daysCnt = 0
 	}
 
+	log.Println("end-tick")
+	log.Println("")
+	s.ticks++
 }
 
 // Add puts a service in the timing wheel, with respect to its expiry
@@ -116,12 +125,16 @@ func (s *Wheel) Add(service *Service) {
 	minutes := seconds / wheelSecondsInMinute
 	seconds -= wheelSecondsInMinute * minutes
 
+	// TODO REMOVE ME
+	log.Println("s:", seconds, "m:", minutes, "h:", hours, "d:", days)
+
 	if service.IsImmediate() {
 		seconds = 1
 		service.Immediate(false)
 	}
 
 	if days > 0 {
+		log.Println("wheel: adding in days")
 		index := (days % wheelMaxDays) - 1
 		s.days[index] = append(s.days[index], service)
 		return
@@ -129,21 +142,21 @@ func (s *Wheel) Add(service *Service) {
 
 	if hours > 0 {
 		index := (hours % wheelMaxHours) - 1
+		log.Println("wheel: adding in hours: ", index)
 		s.hours[index] = append(s.hours[index], service)
 		return
 	}
 
 	if minutes > 0 {
 		index := (minutes % wheelMaxMins) - 1
+		log.Println("wheel: adding in minutes: ", index)
 		s.mins[index] = append(s.mins[index], service)
 		return
 	}
 
-	if seconds > 0 {
-		index := seconds
-		s.secs[index] = append(s.secs[index], service)
-		return
-	}
+	index := seconds
+	log.Println("wheel: adding in seconds: ", index)
+	s.secs[index] = append(s.secs[index], service)
 }
 
 // Seconds get the seconds of the timing wheel
@@ -214,19 +227,24 @@ func (s *Wheel) Run() {
 //// -- Private --
 
 func (s *Wheel) rotateMinutes() {
+	log.Println("rotate minutes")
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
 		s.secs[i] = tb
 	}
+
+	log.Println("minutes: ", s.mins)
 
 	// For everything in 98d:12:34:XX
 	for _, el := range s.mins[s.minsCnt] {
 		index := el.secs % wheelMaxSecs
 		s.secs[index] = append(s.secs[index], el)
 	}
+	log.Println("seconds: ", s.secs)
 }
 
 func (s *Wheel) rotateHours() {
+	log.Println("rotate hours")
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
 		s.secs[i] = tb
@@ -252,6 +270,7 @@ func (s *Wheel) rotateHours() {
 }
 
 func (s *Wheel) rotateDays() {
+	log.Println("rotate days")
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
 		s.secs[i] = tb

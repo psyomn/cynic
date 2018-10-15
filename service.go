@@ -68,6 +68,7 @@ type Service struct {
 	id        uint64
 
 	repo *StatusServer
+	//exectime int
 }
 
 var lastID uint64
@@ -181,6 +182,20 @@ func (s *Service) Execute() {
 	for _, hook := range s.hooks {
 		hook(s.repo)
 	}
+}
+
+func (s *Service) String() string {
+	return fmt.Sprintf(
+		"Service<url:%v secs:%d hooks:%v immediate:%t offset:%d repeat:%t label:%v id:%d repo:%v>",
+		s.url,
+		s.secs,
+		s.hooks,
+		s.immediate,
+		s.offset,
+		s.repeat,
+		s.Label,
+		s.id,
+		s.repo)
 }
 
 func workerQuery(s *Service, t *StatusServer) {

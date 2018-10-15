@@ -322,3 +322,57 @@ func TestServiceImmediateWithRepeat(t *testing.T) {
 
 	assert(t, count == 2)
 }
+
+func TestRepeatedRotation(t *testing.T) {
+	setup := func(interval, timerange int) func(t *testing.T) {
+		return func(t *testing.T) {
+			var count int
+			ser := cynic.ServiceNew(interval)
+			ser.Repeat(true)
+			ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+				count++
+				return false, 0
+			})
+
+			w := cynic.WheelNew()
+			w.Add(&ser)
+
+			for i := 0; i < timerange+1; i++ {
+				w.Tick()
+			}
+
+			expectedCount := (timerange - 1) / interval
+			if expectedCount != count {
+				log.Println("Expected ticks: ", expectedCount)
+				log.Println("Actual ticks:   ", count)
+			}
+
+			assert(t, count == expectedCount)
+		}
+	}
+
+	type testCase struct {
+		name      string
+		interval  int
+		timerange int
+	}
+
+	testCases := []testCase{
+		testCase{"1 sec within 1 min", 1 * second, 1 * minute},
+		testCase{"1 sec within 1 min 1 sec", 1 * second, 1*minute + 1*second},
+		testCase{"2 sec within 1 min 1 sec", 2 * second, 1*minute + 1*second},
+		testCase{"1 sec within 1 min 30 sec", 1 * second, 1*minute + 30*second},
+		testCase{"simple 1 sec within 2 min", 1 * second, 2 * minute},
+		testCase{"1 sec within 3 min", 1 * second, 3 * minute},
+		testCase{"1 sec within 5 min", 1 * second, 5 * minute},
+		testCase{"1 sec within 1 day", 1 * second, 1 * day},
+		testCase{"10 sec within 3 min", 10 * second, 3 * minute},
+		testCase{"59 sec within 10 min", 59 * second, 10 * minute},
+		testCase{"60 sec within 10 min", 60 * second, 10 * minute},
+		testCase{"10 minutes within 1 day", 10 * minute, 1 * day},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, setup(tc.interval, tc.timerange))
+	}
+}
