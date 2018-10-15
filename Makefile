@@ -49,4 +49,10 @@ test-cover-anal:
 	go tool cover -html=cover.out -o cover.html
 .PHONY: test-cover-anal
 
+# https://github.com/dominikh/go-tools#tools
+test-unused:
+	@echo -- run unused code checker
+	unused ./...
+.PHONY: test-unused
+
 .PHONY:test-all
