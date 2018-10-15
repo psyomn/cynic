@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/psyomn/cynic"
 )
@@ -95,9 +96,14 @@ func exampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 	}
 }
 
+var exHook2Cnt int
+
 // Another example hook
 func anotherExampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 	fmt.Println("Firing example hook 2 yay!")
+	fmt.Println("exhook2Cnt: ", exHook2Cnt)
+	exHook2Cnt++
+
 	return false, result{
 		Alert:   true,
 		Message: "I feel calm and collected inside.",
@@ -140,19 +146,20 @@ func main() {
 	services[0].AddHook(anotherExampleHook)
 	services[0].AddHook(finalHook)
 	services[0].Offset(10) // delay 10 seconds before starting
+	services[0].Repeat(true)
 
 	services[1].AddHook(exampleHook)
+	services[1].Repeat(true)
 
 	services[2].AddHook(exampleHook)
 	services[2].AddHook(anotherExampleHook)
 	services[2].AddHook(finalHook)
+	services[2].Repeat(true)
 
 	for i := 0; i < len(services); i++ {
 		fmt.Println("entry: ", services[i])
 		fmt.Printf("address: %p\n", &services[i])
 	}
-
-	fmt.Println("passing to session: ", services)
 
 	// TODO these are no longer set in stone -- can have multiple
 	// status servers...
@@ -172,5 +179,8 @@ func main() {
 		AlertTime: 20, // check status every 20 seconds
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	cynic.Start(session)
+	wg.Wait()
 }

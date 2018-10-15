@@ -18,7 +18,9 @@ limitations under the License.
 */
 package cynic
 
-import ()
+import (
+	"time"
+)
 
 const (
 	// StopService is the signal to stop the running querying service
@@ -41,18 +43,17 @@ type Session struct {
 
 // Start starts a cynic instance, with any provided hooks.
 func Start(session Session) {
-	// TODO replace addressbook stuff
-	// addressBook := AddressBookNew(session)
-	// signal := make(chan int)
-	// addressBook.Run(signal)
-
 	wheel := WheelNew()
 
 	for _, ser := range session.Services {
 		wheel.Add(&ser)
 	}
-}
 
-func runWheel(wheel *Wheel) {
+	ticker := time.NewTicker(time.Second)
 
+	go func() {
+		for range ticker.C {
+			wheel.Tick()
+		}
+	}()
 }
