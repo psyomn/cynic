@@ -273,6 +273,9 @@ func TestServiceOffset(t *testing.T) {
 }
 
 func TestServiceImmediate(t *testing.T) {
+	// TODO: Test with immediate and a long long time afterwards, eg:
+	//   immediate + 5 hours in the future
+	//   immediate + 3 days in the future
 	var count int
 	time := 12
 	s := cynic.ServiceNew(time)
@@ -323,7 +326,131 @@ func TestServiceImmediateWithRepeat(t *testing.T) {
 	assert(t, count == 2)
 }
 
-func TestRepeatedRotation(t *testing.T) {
+func TestAddHalfMinute(t *testing.T) {
+	var count int
+
+	ser := cynic.ServiceNew(1)
+	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+		count++
+		return false, 0
+	})
+
+	w := cynic.WheelNew()
+
+	for {
+		w.Tick()
+		if w.Seconds() == 30 {
+			break
+		}
+	}
+	w.Add(&ser)
+	log.Println(w)
+
+	w.Tick()
+	assert(t, count == 1)
+}
+
+func TestAddLastMinuteSecond(t *testing.T) {
+	var count int
+
+	ser := cynic.ServiceNew(1)
+	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+		count++
+		return false, 0
+	})
+
+	w := cynic.WheelNew()
+
+	for {
+		w.Tick()
+		if w.Seconds() == 58 {
+			break
+		}
+	}
+	w.Add(&ser)
+	log.Println(w)
+
+	w.Tick() // expire 58
+	w.Tick() // expire 59
+
+	assert(t, count == 1)
+}
+
+func TestRepeatedTicks(t *testing.T) {
+	var count int
+	ser := cynic.ServiceNew(1)
+	ser.Repeat(true)
+	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+		count++
+		return false, 0
+	})
+
+	w := cynic.WheelNew()
+	w.Add(&ser)
+
+	upto := 30
+
+	// set cursor on top of first service
+	w.Tick()
+
+	for i := 0; i < upto; i++ {
+		w.Tick()
+	}
+
+	assert(t, count == 30)
+}
+
+func TestSimpleRepeatedRotation(t *testing.T) {
+	var count int
+	ser := cynic.ServiceNew(1)
+	label := "simple-repeated-rotation-x3"
+
+	ser.Label = &label
+	ser.Repeat(true)
+	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+		count++
+		return false, 0
+	})
+
+	w := cynic.WheelNew()
+
+	for {
+		if w.Tick(); w.Seconds() == 58 {
+			break
+		}
+	}
+
+	w.Add(&ser)
+
+	// Test first rotation
+	w.Tick()
+	w.Tick()
+	assert(t, count == 1)
+
+	// Test second rotation
+	for {
+		if w.Tick(); w.Seconds() == 59 {
+			break
+		}
+	}
+
+	w.Tick()
+	assert(t, count == 60)
+
+	// Test third rotation
+	for {
+		if w.Tick(); w.Seconds() == 59 {
+			break
+		}
+	}
+
+	w.Tick()
+	log.Println("count:  ", count)
+	log.Println("mincnt: ", w.Minutes())
+	assert(t, count == 120)
+}
+
+func TestRepeatedRotationTables(t *testing.T) {
 	setup := func(interval, timerange int) func(t *testing.T) {
 		return func(t *testing.T) {
 			var count int
@@ -375,4 +502,19 @@ func TestRepeatedRotation(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, setup(tc.interval, tc.timerange))
 	}
+}
+
+func TestZeroTime(t *testing.T) {
+	var count int
+	ser := cynic.ServiceNew(0)
+	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+		count++
+		return false, 0
+	})
+	w := cynic.WheelNew()
+
+	w.Add(&ser)
+	w.Tick()
+
+	assert(t, count == 1)
 }

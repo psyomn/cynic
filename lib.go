@@ -51,6 +51,7 @@ func Start(session Session) {
 
 	ticker := time.NewTicker(time.Second)
 
+	// TODO: maybe use wheel.run
 	go func() {
 		for range ticker.C {
 			wheel.Tick()

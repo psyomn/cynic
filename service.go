@@ -56,7 +56,7 @@ type HookSignature = func(*StatusServer) (bool, interface{})
 // - A service is an action
 // - A service can have many:
 //   - hooks (that can act as contracts)
-// - A service is bound to a data repository/cache
+// - A service may be bound to a data repository/cache
 type Service struct {
 	url       *url.URL
 	secs      int
@@ -68,7 +68,8 @@ type Service struct {
 	id        uint64
 
 	repo *StatusServer
-	//exectime int
+
+	nextAbsTime int
 }
 
 var lastID uint64
@@ -83,13 +84,14 @@ type serviceError struct {
 func ServiceNew(secs int) Service {
 	atomic.AddUint64(&lastID, 1)
 	return Service{
-		url:       nil,
-		secs:      secs,
-		hooks:     nil,
-		immediate: false,
-		offset:    0,
-		repeat:    false,
-		id:        lastID,
+		url:         nil,
+		secs:        secs,
+		hooks:       nil,
+		immediate:   false,
+		offset:      0,
+		repeat:      false,
+		id:          lastID,
+		nextAbsTime: 0,
 	}
 }
 
@@ -103,19 +105,22 @@ func ServiceJSONNew(rawurl string, secs int) Service {
 	atomic.AddUint64(&lastID, 1)
 
 	return Service{
-		url:       u,
-		secs:      secs,
-		hooks:     hooks,
-		immediate: false,
-		offset:    0,
-		repeat:    false,
-		id:        lastID,
+		url:         u,
+		secs:        secs,
+		hooks:       hooks,
+		immediate:   false,
+		offset:      0,
+		repeat:      false,
+		id:          lastID,
+		nextAbsTime: 0,
 	}
 }
 
 // Stop service will stop the ticker, and gracefully exit it.
+// TODO DEPRACATED
 func (s *Service) Stop() {
 	log.Print("stopping service: ", s.url.String())
+	log.Fatal("do not run me no more")
 }
 
 // AddHook appends a hook to the service
@@ -158,6 +163,11 @@ func (s *Service) ID() uint64 {
 	return s.id
 }
 
+// GetSecs returns the number of seconds
+func (s *Service) GetSecs() int {
+	return s.secs
+}
+
 // UniqStr combines the label and id in order to have a unique, human
 // readable label.
 func (s *Service) UniqStr() string {
@@ -171,6 +181,7 @@ func (s *Service) DataRepo(repo *StatusServer) {
 
 // Execute the service
 func (s *Service) Execute() {
+	log.Println("Executing service #", s.id)
 	// TODO this should eventually be split into something else
 	// (ie services should have some sort)
 	if s.url != nil && s.repo != nil {
@@ -196,6 +207,12 @@ func (s *Service) String() string {
 		s.Label,
 		s.id,
 		s.repo)
+}
+
+// NextAbsTime sets the next abs time. Only useful for repeatable
+// services.
+func (s *Service) NextAbsTime(time int) {
+	s.nextAbsTime = time
 }
 
 func workerQuery(s *Service, t *StatusServer) {

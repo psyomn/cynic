@@ -70,11 +70,10 @@ func (s *Wheel) Tick() {
 		//   tricky for now
 		service.Execute()
 		if service.IsRepeating() {
-			log.Println("re-add + _wheel.go_ secscnt: ", s.secsCnt)
-			log.Println("wheel-tick: ", s.ticks)
-			log.Println("service data: ", service)
+			log.Println("> re-add secscnt: ", s.secsCnt)
+			log.Println("> wheel-tick: ", s.ticks)
+			log.Println("> service data: ", service)
 			s.Add(service)
-
 		}
 	}
 
@@ -112,7 +111,14 @@ func (s *Wheel) Tick() {
 // time. The expiry time is taken as 'time_now' +
 // service.seconds_to_expire
 func (s *Wheel) Add(service *Service) {
-	seconds := s.secsCnt + service.secs
+	// TODO: verify
+	seconds := s.secsCnt +
+		s.minsCnt*wheelSecondsInMinute +
+		s.hoursCnt*wheelSecondsInHour +
+		s.daysCnt*wheelSecondsInDay +
+		service.secs
+
+	log.Println("### total-seconds", seconds)
 
 	days := seconds / wheelSecondsInDay
 	if days > 365 {
@@ -131,10 +137,11 @@ func (s *Wheel) Add(service *Service) {
 	if service.IsImmediate() {
 		seconds = 1
 		service.Immediate(false)
+		goto secondsAdd
 	}
 
 	if days > 0 {
-		log.Println("wheel: adding in days")
+		log.Println("wheel: adding in days") // TODO REMOVE
 		index := (days % wheelMaxDays) - 1
 		s.days[index] = append(s.days[index], service)
 		return
@@ -142,20 +149,22 @@ func (s *Wheel) Add(service *Service) {
 
 	if hours > 0 {
 		index := (hours % wheelMaxHours) - 1
-		log.Println("wheel: adding in hours: ", index)
+		log.Println("wheel: adding in hours: ", index) // TODO REMOVE
 		s.hours[index] = append(s.hours[index], service)
 		return
 	}
 
 	if minutes > 0 {
-		index := (minutes % wheelMaxMins) - 1
-		log.Println("wheel: adding in minutes: ", index)
+		index := (minutes % wheelMaxMins) // - 1 // TODO: rethink here
+
+		log.Println("wheel: adding in minutes: ", index, " actual ", minutes) // TODO REMOVE
 		s.mins[index] = append(s.mins[index], service)
 		return
 	}
 
+secondsAdd:
 	index := seconds
-	log.Println("wheel: adding in seconds: ", index)
+	log.Println("wheel: adding in seconds: ", index) // TODO REMOVE
 	s.secs[index] = append(s.secs[index], service)
 }
 
@@ -238,6 +247,7 @@ func (s *Wheel) rotateMinutes() {
 	// For everything in 98d:12:34:XX
 	for _, el := range s.mins[s.minsCnt] {
 		index := el.secs % wheelMaxSecs
+		log.Println("placing from min to sec in index: ", index)
 		s.secs[index] = append(s.secs[index], el)
 	}
 	log.Println("seconds: ", s.secs)
