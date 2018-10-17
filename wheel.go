@@ -70,9 +70,6 @@ func (s *Wheel) Tick() {
 		//   tricky for now
 		service.Execute()
 		if service.IsRepeating() {
-			log.Println("> re-add secscnt: ", s.secsCnt)
-			log.Println("> wheel-tick: ", s.ticks)
-			log.Println("> service data: ", service)
 			s.Add(service)
 		}
 	}
@@ -102,8 +99,6 @@ func (s *Wheel) Tick() {
 		s.daysCnt = 0
 	}
 
-	log.Println("end-tick")
-	log.Println("")
 	s.ticks++
 }
 
@@ -111,17 +106,17 @@ func (s *Wheel) Tick() {
 // time. The expiry time is taken as 'time_now' +
 // service.seconds_to_expire
 func (s *Wheel) Add(service *Service) {
-	// TODO: verify
-	seconds := s.secsCnt +
-		s.minsCnt*wheelSecondsInMinute +
-		s.hoursCnt*wheelSecondsInHour +
-		s.daysCnt*wheelSecondsInDay +
-		service.secs
+	// TODO:
+	//   so there should be an absolute here, that is added
+	//   with the services that will be added. this is because the
+	//   wheels are simple arrays, and don't have any complex
+	//   rotations, like dynamic circular buffers
 
-	log.Println("### total-seconds", seconds)
+	seconds := s.secsCnt + service.secs
+	service.AbsSecs(seconds)
 
 	days := seconds / wheelSecondsInDay
-	if days > 365 {
+	if days > wheelMaxDays {
 		log.Fatal("can't assign timers that are >365 days in the future")
 	}
 
@@ -131,8 +126,14 @@ func (s *Wheel) Add(service *Service) {
 	minutes := seconds / wheelSecondsInMinute
 	seconds -= wheelSecondsInMinute * minutes
 
-	// TODO REMOVE ME
-	log.Println("s:", seconds, "m:", minutes, "h:", hours, "d:", days)
+	// log.Println(
+	// 	"\n### Adding with times: ###########################\n",
+	// 	"# seconds: ", seconds, ", seccnt: ", s.secsCnt, "\n",
+	// 	"# minutes: ", minutes, ", minscnt: ", s.minsCnt, "\n",
+	// 	"# hours: ", hours, " hourscnt: ", s.hoursCnt, "\n",
+	// 	"# days: ", days, " dayscnt: ", s.daysCnt, "\n",
+	// 	"# ", s,
+	// 	"###################################################")
 
 	if service.IsImmediate() {
 		seconds = 1
@@ -141,30 +142,25 @@ func (s *Wheel) Add(service *Service) {
 	}
 
 	if days > 0 {
-		log.Println("wheel: adding in days") // TODO REMOVE
-		index := (days % wheelMaxDays) - 1
+		index := (s.daysCnt+days)%wheelMaxDays - 1
 		s.days[index] = append(s.days[index], service)
 		return
 	}
 
 	if hours > 0 {
-		index := (hours % wheelMaxHours) - 1
-		log.Println("wheel: adding in hours: ", index) // TODO REMOVE
+		index := (s.hoursCnt+hours)%wheelMaxHours - 1
 		s.hours[index] = append(s.hours[index], service)
 		return
 	}
 
 	if minutes > 0 {
-		index := (minutes % wheelMaxMins) // - 1 // TODO: rethink here
-
-		log.Println("wheel: adding in minutes: ", index, " actual ", minutes) // TODO REMOVE
+		index := (s.minsCnt+minutes)%wheelMaxMins - 1 // TODO: rethink here
 		s.mins[index] = append(s.mins[index], service)
 		return
 	}
 
 secondsAdd:
 	index := seconds
-	log.Println("wheel: adding in seconds: ", index) // TODO REMOVE
 	s.secs[index] = append(s.secs[index], service)
 }
 
@@ -236,25 +232,26 @@ func (s *Wheel) Run() {
 //// -- Private --
 
 func (s *Wheel) rotateMinutes() {
-	log.Println("rotate minutes")
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
 		s.secs[i] = tb
 	}
 
-	log.Println("minutes: ", s.mins)
-
 	// For everything in 98d:12:34:XX
 	for _, el := range s.mins[s.minsCnt] {
-		index := el.secs % wheelMaxSecs
-		log.Println("placing from min to sec in index: ", index)
+		index := 0
+		if el.IsRepeating() {
+			index = el.GetAbsSecs() % wheelMaxSecs
+		} else {
+			index = el.secs % wheelMaxSecs
+		}
+
 		s.secs[index] = append(s.secs[index], el)
 	}
-	log.Println("seconds: ", s.secs)
 }
 
 func (s *Wheel) rotateHours() {
-	log.Println("rotate hours")
+	// log.Println("rotate hours") // TODO REMOVE
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
 		s.secs[i] = tb
@@ -280,7 +277,7 @@ func (s *Wheel) rotateHours() {
 }
 
 func (s *Wheel) rotateDays() {
-	log.Println("rotate days")
+	// log.Println("rotate days") // TODO REMOVE
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
 		s.secs[i] = tb

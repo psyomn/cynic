@@ -69,7 +69,7 @@ type Service struct {
 
 	repo *StatusServer
 
-	nextAbsTime int
+	absSecs int
 }
 
 var lastID uint64
@@ -84,14 +84,14 @@ type serviceError struct {
 func ServiceNew(secs int) Service {
 	atomic.AddUint64(&lastID, 1)
 	return Service{
-		url:         nil,
-		secs:        secs,
-		hooks:       nil,
-		immediate:   false,
-		offset:      0,
-		repeat:      false,
-		id:          lastID,
-		nextAbsTime: 0,
+		url:       nil,
+		secs:      secs,
+		hooks:     nil,
+		immediate: false,
+		offset:    0,
+		repeat:    false,
+		id:        lastID,
+		absSecs:   0,
 	}
 }
 
@@ -105,14 +105,14 @@ func ServiceJSONNew(rawurl string, secs int) Service {
 	atomic.AddUint64(&lastID, 1)
 
 	return Service{
-		url:         u,
-		secs:        secs,
-		hooks:       hooks,
-		immediate:   false,
-		offset:      0,
-		repeat:      false,
-		id:          lastID,
-		nextAbsTime: 0,
+		url:       u,
+		secs:      secs,
+		hooks:     hooks,
+		immediate: false,
+		offset:    0,
+		repeat:    false,
+		id:        lastID,
+		absSecs:   0,
 	}
 }
 
@@ -121,6 +121,16 @@ func ServiceJSONNew(rawurl string, secs int) Service {
 func (s *Service) Stop() {
 	log.Print("stopping service: ", s.url.String())
 	log.Fatal("do not run me no more")
+}
+
+// AbsSecs sets the absolute seconds of last timer addition
+func (s *Service) AbsSecs(secs int) {
+	s.absSecs = secs
+}
+
+// GetAbsSecs returns the absolute seconds of last timer addition
+func (s *Service) GetAbsSecs() int {
+	return s.absSecs
 }
 
 // AddHook appends a hook to the service
@@ -181,7 +191,7 @@ func (s *Service) DataRepo(repo *StatusServer) {
 
 // Execute the service
 func (s *Service) Execute() {
-	log.Println("Executing service #", s.id)
+	// log.Println("Executing service #", s.id) // TODO REMOVE ME
 	// TODO this should eventually be split into something else
 	// (ie services should have some sort)
 	if s.url != nil && s.repo != nil {
@@ -207,12 +217,6 @@ func (s *Service) String() string {
 		s.Label,
 		s.id,
 		s.repo)
-}
-
-// NextAbsTime sets the next abs time. Only useful for repeatable
-// services.
-func (s *Service) NextAbsTime(time int) {
-	s.nextAbsTime = time
 }
 
 func workerQuery(s *Service, t *StatusServer) {
