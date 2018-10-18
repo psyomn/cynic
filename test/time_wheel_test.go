@@ -474,6 +474,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 				log.Println("timerange:      ", timerange)
 				log.Println("expected ticks: ", expectedCount)
 				log.Println("actual ticks:   ", count)
+				log.Println("abs secs:       ", ser.GetAbsSecs())
 			}
 			assert(t, count == expectedCount)
 		}
@@ -494,11 +495,37 @@ func TestRepeatedRotationTables(t *testing.T) {
 		testCase{"1 sec within 3 min", 1 * second, 3 * minute},
 		testCase{"1 sec within 4 min", 1 * second, 4 * minute},
 		testCase{"1 sec within 5 min", 1 * second, 5 * minute},
+		testCase{"1 sec within 1 hour", 1 * second, 1 * hour},
+		testCase{"59 sec within 10 min", 59 * second, 10 * minute},
+		testCase{"60 sec within 10 min", 60 * second, 10 * minute},
+
+		testCase{"10 sec within 1 min", 10 * second, 1 * minute},
+		testCase{"10 sec within 2 min", 10 * second, 2 * minute},
+		testCase{"10 sec within 3 min", 10 * second, 3 * minute},
+		testCase{"13 sec within 2 min", 13 * second, 2 * minute},
+
+		// days
+		//   FIXME #24: these are slightly off by a few seconds;
+		//     for some usecases this is okay, but the way
+		//     that things are added
+		//
 		// testCase{"1 sec within 1 day", 1 * second, 1 * day},
-		// testCase{"10 sec within 3 min", 10 * second, 3 * minute},
-		// testCase{"59 sec within 10 min", 59 * second, 10 * minute},
-		// testCase{"60 sec within 10 min", 60 * second, 10 * minute},
-		// testCase{"10 minutes within 1 day", 10 * minute, 1 * day}, // TODO investigate
+		// testCase{"2 sec within 1 day", 2 * second, 1 * day},
+		// testCase{"33 sec within 1 day", 33 * second, 1 * day},
+		// testCase{"43 sec within 1 day", 43 * second, 1 * day},
+		// testCase{"53 sec within 1 day", 53 * second, 1 * day},
+		// testCase{"10 minutes within 1 day", 10 * minute, 1 * day},
+		// testCase{"1 hour within 1 week", 1 * hour, 1 * week},
+
+		testCase{"1 hour within 1 day", 1 * hour, 1 * day},
+		testCase{"4 hours within 1 day", 4 * hour, 1 * day},
+
+		// weeks
+		testCase{"1 day in 1 week", 1 * day, 1 * week},
+		testCase{"2 days in 1 week", 2 * day, 1 * week},
+
+		testCase{"1 week in 1 month", 1 * week, 1 * month},
+		testCase{"1 month in 1 year", 1 * month, 1 * year},
 	}
 
 	for _, tc := range testCases {

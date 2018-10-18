@@ -105,7 +105,15 @@ func (s *Wheel) Tick() {
 // Add puts a service in the timing wheel, with respect to its expiry
 // time. The expiry time is taken as 'time_now' +
 // service.seconds_to_expire
+//
+// TODO: A better way to do this would be to add relative
+//   timestamps. That would probably simplify a lot of things.
 func (s *Wheel) Add(service *Service) {
+	// This FUNCTION should calculate the indices
+	// where new timers should be added
+
+	// The time given is seconds in the future.
+
 	// TODO:
 	//   so there should be an absolute here, that is added
 	//   with the services that will be added. this is because the
@@ -119,21 +127,42 @@ func (s *Wheel) Add(service *Service) {
 	if days > wheelMaxDays {
 		log.Fatal("can't assign timers that are >365 days in the future")
 	}
-
+	// calculate how far away from the current relative time in
+	// the wheel, the service to be added, is
 	seconds -= wheelSecondsInDay * days
+
 	hours := seconds / wheelSecondsInHour
 	seconds -= wheelSecondsInHour * hours
-	minutes := seconds / wheelSecondsInMinute
+
+	minutes := (seconds / wheelSecondsInMinute)
 	seconds -= wheelSecondsInMinute * minutes
 
-	// log.Println(
-	// 	"\n### Adding with times: ###########################\n",
-	// 	"# seconds: ", seconds, ", seccnt: ", s.secsCnt, "\n",
-	// 	"# minutes: ", minutes, ", minscnt: ", s.minsCnt, "\n",
-	// 	"# hours: ", hours, " hourscnt: ", s.hoursCnt, "\n",
-	// 	"# days: ", days, " dayscnt: ", s.daysCnt, "\n",
-	// 	"# ", s,
-	// 	"###################################################")
+	// handle extra counts
+	if minutes+s.minsCnt >= wheelMaxMins {
+		minutes = 0
+		hours++
+	}
+
+	if hours+s.hoursCnt >= wheelMaxHours {
+		hours = 0
+		days++
+	}
+
+	if days+s.daysCnt >= wheelMaxDays {
+		// TODO
+	}
+
+	if false {
+		log.Println(
+			"\n### Adding with times: ###########################\n",
+			"# abs seconds: ", service.GetAbsSecs(), "\n",
+			"# seconds: ", seconds, ", seccnt: ", s.secsCnt, "\n",
+			"# minutes: ", minutes, ", minscnt: ", s.minsCnt, "\n",
+			"# hours: ", hours, " hourscnt: ", s.hoursCnt, "\n",
+			"# days: ", days, " dayscnt: ", s.daysCnt, "\n",
+			"# ", s,
+			"###################################################")
+	}
 
 	if service.IsImmediate() {
 		seconds = 1
@@ -148,12 +177,15 @@ func (s *Wheel) Add(service *Service) {
 	}
 
 	if hours > 0 {
+		// index := (s.hoursCnt+hours)%wheelMaxHours - 1
 		index := (s.hoursCnt+hours)%wheelMaxHours - 1
 		s.hours[index] = append(s.hours[index], service)
 		return
 	}
 
 	if minutes > 0 {
+		// calculating to get the nth minute
+		// nth minute is the nth-1 index
 		index := (s.minsCnt+minutes)%wheelMaxMins - 1 // TODO: rethink here
 		s.mins[index] = append(s.mins[index], service)
 		return
@@ -277,7 +309,6 @@ func (s *Wheel) rotateHours() {
 }
 
 func (s *Wheel) rotateDays() {
-	// log.Println("rotate days") // TODO REMOVE
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
 		s.secs[i] = tb
@@ -296,7 +327,7 @@ func (s *Wheel) rotateDays() {
 	// for everything in 98d:XX:XX:XX
 	for _, el := range s.days[s.daysCnt] {
 		// Place in hours
-		hourIndex := ((el.secs % wheelSecondsInDay) / wheelSecondsInHour)
+		hourIndex := ((el.GetAbsSecs() % wheelSecondsInDay) / wheelSecondsInHour)
 		if hourIndex > 0 {
 			hourIndex--
 			s.hours[hourIndex] = append(s.hours[hourIndex], el)
@@ -304,7 +335,7 @@ func (s *Wheel) rotateDays() {
 		}
 
 		// Place in minutes
-		minuteIndex := ((el.secs % wheelSecondsInHour) / wheelSecondsInMinute)
+		minuteIndex := ((el.GetAbsSecs() % wheelSecondsInHour) / wheelSecondsInMinute)
 		if minuteIndex > 0 {
 			minuteIndex--
 			s.mins[minuteIndex] = append(s.mins[minuteIndex], el)
@@ -312,7 +343,7 @@ func (s *Wheel) rotateDays() {
 		}
 
 		// Place in seconds
-		secondIndex := (el.secs % wheelSecondsInMinute)
+		secondIndex := (el.GetAbsSecs() % wheelSecondsInMinute)
 		s.secs[secondIndex] = append(s.secs[secondIndex], el)
 	}
 }
