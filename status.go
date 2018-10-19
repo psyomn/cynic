@@ -47,11 +47,6 @@ const (
 	// DefaultStatusEndpoint is where the default status json can
 	// be retrieved from
 	DefaultStatusEndpoint = "/status"
-
-	// statusPokeTime is how much time to check the map, and then if the
-	// map has entries, poke on the channel. This eventually has to be
-	// done a little better
-	statusPokeTime = 60
 )
 
 // StatusServerNew creates a new status server for cynic

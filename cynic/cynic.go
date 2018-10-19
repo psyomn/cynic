@@ -30,7 +30,6 @@ import (
 var (
 	statusPort  = cynic.StatusPort
 	slackHook   string
-	sh          *string
 	emailAlerts = false
 	version     = false
 	help        = false

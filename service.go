@@ -205,6 +205,18 @@ func (s *Service) Execute() {
 	}
 }
 
+// SetSecs sets the seconds of the service to fire on. This will not
+// take effect on the wheel, unless it's a repeatable service, and was
+// re-added on the next tick.
+func (s *Service) SetSecs(secs int) {
+	s.secs = secs
+}
+
+// GetOffset returns the offset time of the service
+func (s *Service) GetOffset() int {
+	return s.offset
+}
+
 func (s *Service) String() string {
 	return fmt.Sprintf(
 		"Service<url:%v secs:%d hooks:%v immediate:%t offset:%d repeat:%t label:%v id:%d repo:%v>",
