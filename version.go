@@ -19,4 +19,4 @@ package cynic
 
 // VERSION is the version of the current package. Update with every new
 // tag/release.
-const VERSION string = "0.2.1"
+const VERSION string = "1.0.0"
