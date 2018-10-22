@@ -346,7 +346,6 @@ func TestAddHalfMinute(t *testing.T) {
 
 	w.Tick()
 	w.Tick()
-	log.Println("count is: ", count)
 	assert(t, count == 1)
 }
 

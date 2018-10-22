@@ -19,14 +19,7 @@ package cynic
 
 import (
 	"log"
-	"reflect"
-	"runtime"
 )
-
-func getFuncName(fn interface{}) (hookname string) {
-	hookname = runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
-	return
-}
 
 func nilOrDie(err error, str string) {
 	if err != nil {
