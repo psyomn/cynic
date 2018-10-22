@@ -191,13 +191,13 @@ func (s *Service) DataRepo(repo *StatusServer) {
 
 // Execute the service
 func (s *Service) Execute() {
-	// log.Println("Executing service #", s.id) // TODO REMOVE ME
 	// TODO this should eventually be split into something else
-	// (ie services should have some sort)
+	// (ie services should have some sort of interface, and split
+	// the logic of http querying and hook execution)
 	if s.url != nil && s.repo != nil {
 		// If there is a url and repo specified, then fetch
 		// the data and store it
-		workerQuery(s, s.repo)
+		jsonQuery(s, s.repo)
 	}
 
 	for _, hook := range s.hooks {
@@ -231,8 +231,9 @@ func (s *Service) String() string {
 		s.repo)
 }
 
-func workerQuery(s *Service, t *StatusServer) {
+func jsonQuery(s *Service, t *StatusServer) {
 	address := s.url.String()
+	log.Println("EXECUTE THE JSON THING")
 
 	resp, err := http.Get(address)
 	if err != nil {
@@ -256,65 +257,12 @@ func workerQuery(s *Service, t *StatusServer) {
 		t.Update(address, serviceError{Error: message})
 		return
 	}
-	log.Println("need to use the body: ", body)
 
-	// TODO need to handle this at some point
-	// var json EndpointJSON = parseEndpointJSON(body[:])
+	var json EndpointJSON = parseEndpointJSON(body[:])
 
-	// TODO: need to apply contracts here -- or do i?
-	// results := applyContracts(addressBook, s, &json)
-	results := 0
-	t.Update(address, results)
+	// The applications of contracts/results should only be done
+	// for know json service endpoints. If we have a custom hook,
+	// the hook must be the one that decides what goes in the
+	// status cache.
+	t.Update(address, json) // TODO: better use service.UniqStr() here
 }
-
-// TODO this could probably be a object method instead...
-// func applyContracts(s *Service, json *EndpointJSON) interface{} {
-// 	type result struct {
-// 		HookResults map[string]interface{} `json:"hooks"`
-// 		Timestamp   int64                  `json:"timestamp"`
-// 		HumanTime   string                 `json:"human_time"`
-// 		Alert       bool                   `json:"alert"`
-// 	}
-//
-// 	var ret result
-// 	sumAlerts := false
-// 	ret.HookResults = make(map[string]interface{})
-//
-// 	for i := 0; i < len(s.hooks); i++ {
-// 		hookName := getFuncName(s.hooks[i])
-// 		retAlert, hookRet := s.hooks[i](*json)
-// 		sumAlerts = sumAlerts || retAlert
-//
-// 		if res, ok := ret.HookResults[hookName]; ok {
-// 			tempResult := res.(result)
-// 			tempResult.HookResults[hookName] = hookRet
-// 			tempResult.Timestamp = time.Now().Unix()
-// 			ret.HookResults[hookName] = tempResult
-// 			ret.Alert = retAlert
-// 		} else {
-// 			ret.HookResults[hookName] = hookRet
-// 			ret.Timestamp = time.Now().Unix()
-// 			ret.HumanTime = time.Now().Format(time.RFC850)
-// 			ret.Alert = retAlert
-// 		}
-// 	}
-//
-// 	if sumAlerts {
-// 		hostname, err := os.Hostname()
-// 		if err != nil {
-// 			hostname = "nohost"
-// 		}
-// 		message := AlertMessage{
-// 			Endpoint:      s.url.String(),
-// 			Response:      ret,
-// 			CynicHostname: hostname,
-// 			Now:           time.Now().Format(time.RFC850),
-// 		}
-//
-// 		// TODO, need a better alerting mechanism
-// 		log.Println("This would be added to the queue alert thingy: ", message)
-// 		// addressBook.queueAlert(&message)
-// 	}
-//
-// 	return ret
-// }

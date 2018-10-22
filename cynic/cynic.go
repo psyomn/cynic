@@ -28,12 +28,11 @@ import (
 )
 
 var (
-	statusPort  = cynic.StatusPort
-	slackHook   string
-	emailAlerts = false
-	version     = false
-	help        = false
-	logPath     string
+	statusPort = cynic.StatusPort
+	slackHook  string
+	version    = false
+	help       = false
+	logPath    string
 )
 
 func initFlag() {
@@ -43,7 +42,6 @@ func initFlag() {
 
 	// Alerts
 	flag.StringVar(&slackHook, "slack-hook", slackHook, "set slack hook url")
-	flag.BoolVar(&emailAlerts, "email-alerts", emailAlerts, "enable email alerts")
 
 	// Misc
 	flag.BoolVar(&version, "v", version, "print the version")
@@ -138,8 +136,8 @@ func main() {
 	var services []cynic.Service
 
 	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/one", 1))
-	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/two", 1))
-	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/flappyerror", 1))
+	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/two", 2))
+	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/flappyerror", 3))
 
 	services[0].AddHook(exampleHook)
 	services[0].AddHook(anotherExampleHook)
@@ -160,22 +158,19 @@ func main() {
 		fmt.Printf("address: %p\n", &services[i])
 	}
 
-	// TODO these are no longer set in stone -- can have multiple
-	// status servers...
-	//
-	// StatusPort:     statusPort,
-	// StatusEndpoint: cynic.DefaultStatusEndpoint,
-
+	var statusServers []cynic.StatusServer
 	statusServer := cynic.StatusServerNew(statusPort, cynic.DefaultStatusEndpoint)
+	statusServers = append(statusServers, statusServer)
 
-	for _, ser := range services {
-		ser.DataRepo(&statusServer)
+	for i := 0; i < len(services); i++ {
+		services[i].DataRepo(&statusServer)
 	}
 
 	session := cynic.Session{
-		Services:  services,
-		Alerter:   exampleAlerter,
-		AlertTime: 20, // check status every 20 seconds
+		Services:      services,
+		Alerter:       exampleAlerter,
+		StatusServers: statusServers,
+		AlertTime:     20, // check status every 20 seconds
 	}
 
 	var wg sync.WaitGroup

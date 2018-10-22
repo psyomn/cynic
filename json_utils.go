@@ -27,9 +27,6 @@ import (
 // other things.
 type EndpointJSON = interface{}
 
-// JSONPathSpec is a JSONPath string.
-type JSONPathSpec = string
-
 // ParseEndpointJSON parses the json returned from an endpoint.
 func parseEndpointJSON(raw []byte) EndpointJSON {
 	var result interface{}

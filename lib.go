@@ -36,25 +36,31 @@ const (
 // Session is the configuration a cynic instance requires to start
 // running and working
 type Session struct {
-	Services  []Service
-	Alerter   AlertFunc
-	AlertTime int
+	Services      []Service
+	StatusServers []StatusServer
+	Alerter       AlertFunc
+	AlertTime     int
 }
 
 // Start starts a cynic instance, with any provided hooks.
 func Start(session Session) {
 	wheel := WheelNew()
 
-	for _, ser := range session.Services {
-		wheel.Add(&ser)
+	for i := 0; i < len(session.Services); i++ {
+		wheel.Add(&session.Services[i])
 	}
 
 	ticker := time.NewTicker(time.Second)
-
 	// TODO: maybe use wheel.run
 	go func() {
 		for range ticker.C {
 			wheel.Tick()
 		}
 	}()
+	defer ticker.Stop()
+
+	for _, statusSer := range session.StatusServers {
+		statusSer.Start()
+		defer statusSer.Stop()
+	}
 }
