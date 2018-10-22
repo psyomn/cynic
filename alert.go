@@ -17,25 +17,15 @@ limitations under the License.
 */
 package cynic
 
-import (
-	"encoding/json"
-	"log"
-)
+// AlertFunc defines the hook signature for alert messages
+type AlertFunc = func([]AlertMessage)
 
-// EndpointJSON is the format that we process when receiving and parse
-// json from an enpoint. Basically just an interface to be consumed by
-// other things.
-type EndpointJSON = interface{}
-
-// ParseEndpointJSON parses the json returned from an endpoint.
-func parseEndpointJSON(raw []byte) EndpointJSON {
-	var result interface{}
-	error := json.Unmarshal(raw, &result)
-
-	if error != nil {
-		log.Println("json decoding failed: ", error)
-		return nil
-	}
-
-	return result
+// AlertMessage defines a simple alert structure that can be used by
+// users of the library, and decide how to show information about the
+// alerts.
+type AlertMessage struct {
+	Response      interface{} `json:"response_text"`
+	Endpoint      string      `json:"endpoint"`
+	Now           string      `json:"now"`
+	CynicHostname string      `json:"cynic_hostname"`
 }

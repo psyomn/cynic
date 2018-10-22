@@ -36,17 +36,23 @@ test-cover: vet
 
 test-race: vet
 	@echo -- rerun all tests with race detector
-	@GOMAXPROCS=4 go test -test.short -race ./...
+	@GOMAXPROCS=4 go test -v -test.short -race ./...
 .PHONY: test-race
 
 test-all: vet
 	@echo -- build and run all tests
-	@GOMAXPROCS=4 go test -v -race ./...
+	@GOMAXPROCS=4 go test -race ./...
 
 test-cover-anal:
 	@echo -- run cover analysis
 	go test -coverprofile cover.out ./...
 	go tool cover -html=cover.out -o cover.html
 .PHONY: test-cover-anal
+
+# https://github.com/dominikh/go-tools#tools
+test-unused:
+	@echo -- run unused code checker
+	unused ./...
+.PHONY: test-unused
 
 .PHONY:test-all

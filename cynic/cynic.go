@@ -22,18 +22,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/psyomn/cynic"
 )
 
 var (
-	statusPort  = cynic.StatusPort
-	slackHook   string
-	sh          *string
-	emailAlerts = false
-	version     = false
-	help        = false
-	logPath     string
+	statusPort = cynic.StatusPort
+	slackHook  string
+	version    = false
+	help       = false
+	logPath    string
 )
 
 func initFlag() {
@@ -43,7 +42,6 @@ func initFlag() {
 
 	// Alerts
 	flag.StringVar(&slackHook, "slack-hook", slackHook, "set slack hook url")
-	flag.BoolVar(&emailAlerts, "email-alerts", emailAlerts, "enable email alerts")
 
 	// Misc
 	flag.BoolVar(&version, "v", version, "print the version")
@@ -87,7 +85,7 @@ type result struct {
 // You need to respect this interface so that you can bind hooks to
 // your services. You can return a struct with json hints as shown
 // bellow, and cynic will add that to the /status endpoint.
-func exampleHook(s *cynic.AddressBook, resp interface{}) (alert bool, data interface{}) {
+func exampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 	fmt.Println("Firing the example hook yay!")
 	return false, result{
 		Alert:   true,
@@ -95,16 +93,21 @@ func exampleHook(s *cynic.AddressBook, resp interface{}) (alert bool, data inter
 	}
 }
 
+var exHook2Cnt int
+
 // Another example hook
-func anotherExampleHook(c *cynic.AddressBook, resp interface{}) (alert bool, data interface{}) {
+func anotherExampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 	fmt.Println("Firing example hook 2 yay!")
+	fmt.Println("exhook2Cnt: ", exHook2Cnt)
+	exHook2Cnt++
+
 	return false, result{
 		Alert:   true,
 		Message: "I feel calm and collected inside.",
 	}
 }
 
-func finalHook(c *cynic.AddressBook, resp interface{}) (alert bool, data interface{}) {
+func finalHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 	fmt.Println("IT'S THE FINAL HOOKDOWN")
 	return false, result{
 		Alert:   false,
@@ -131,35 +134,47 @@ func main() {
 	log.Printf("status-port: %s\n", statusPort)
 
 	var services []cynic.Service
-	services = append(services, cynic.ServiceNew("http://localhost:9001/one", 1))
-	services = append(services, cynic.ServiceNew("http://localhost:9001/two", 1))
-	services = append(services, cynic.ServiceNew("http://localhost:9001/flappyerror", 1))
+
+	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/one", 1))
+	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/two", 2))
+	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/flappyerror", 3))
 
 	services[0].AddHook(exampleHook)
 	services[0].AddHook(anotherExampleHook)
 	services[0].AddHook(finalHook)
 	services[0].Offset(10) // delay 10 seconds before starting
+	services[0].Repeat(true)
 
 	services[1].AddHook(exampleHook)
+	services[1].Repeat(true)
 
 	services[2].AddHook(exampleHook)
 	services[2].AddHook(anotherExampleHook)
 	services[2].AddHook(finalHook)
+	services[2].Repeat(true)
 
 	for i := 0; i < len(services); i++ {
 		fmt.Println("entry: ", services[i])
 		fmt.Printf("address: %p\n", &services[i])
 	}
 
-	fmt.Println("passing to session: ", services)
+	var statusServers []cynic.StatusServer
+	statusServer := cynic.StatusServerNew(statusPort, cynic.DefaultStatusEndpoint)
+	statusServers = append(statusServers, statusServer)
 
-	session := cynic.Session{
-		StatusPort:     statusPort,
-		StatusEndpoint: cynic.DefaultStatusEndpoint,
-		Services:       services,
-		Alerter:        exampleAlerter,
-		AlertTime:      20, // check status every 20 seconds
+	for i := 0; i < len(services); i++ {
+		services[i].DataRepo(&statusServer)
 	}
 
+	session := cynic.Session{
+		Services:      services,
+		Alerter:       exampleAlerter,
+		StatusServers: statusServers,
+		AlertTime:     20, // check status every 20 seconds
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
 	cynic.Start(session)
+	wg.Wait()
 }

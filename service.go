@@ -18,10 +18,27 @@ limitations under the License.
 package cynic
 
 import (
+	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"net/url"
-	"time"
+	"sync/atomic"
 )
+
+const (
+	// ServiceDefault is for services that query in the default
+	// way, which is JSON, restful endpoints
+	ServiceDefault = iota
+
+	// ServiceCustom is for services that query other endpoints
+	// instead of JSON. It is up to the user to implement support
+	// for these endpoints.
+	ServiceCustom
+)
+
+// HookSignature specifies what the service hooks should look like.
+type HookSignature = func(*StatusServer) (bool, interface{})
 
 // Service is some http service location that should be queried in a
 // specified amount of time.
@@ -36,51 +53,84 @@ import (
 // encoded into a JSON object, inserted in the sync map, and then
 // served back to the client whenever queried.
 //
-// - A service is an HTTP endpoint
+// - A service is an action
 // - A service can have many:
 //   - hooks (that can act as contracts)
+// - A service may be bound to a data repository/cache
 type Service struct {
-	URL        url.URL
-	Secs       int
-	hooks      []HookSignature
-	ticker     *time.Ticker
-	running    bool
-	tickerChan chan int
-	immediate  bool
-	offset     int
+	url       *url.URL
+	secs      int
+	hooks     []HookSignature
+	immediate bool
+	offset    int
+	repeat    bool
+	Label     *string
+	id        uint64
+
+	repo *StatusServer
+
+	absSecs int
 }
+
+var lastID uint64
 
 // TODO make sure that this is used everywhere.
 type serviceError struct {
 	Error string `json:"error"`
 }
 
-// ServiceNew creates a new service instance
-func ServiceNew(rawurl string, secs int) Service {
+// ServiceNew creates a new service that is primarily used for pure
+// execution
+func ServiceNew(secs int) Service {
+	atomic.AddUint64(&lastID, 1)
+	return Service{
+		url:       nil,
+		secs:      secs,
+		hooks:     nil,
+		immediate: false,
+		offset:    0,
+		repeat:    false,
+		id:        lastID,
+		absSecs:   0,
+	}
+}
+
+// ServiceJSONNew creates a new service instance, which will query a
+// json restful endpoint.
+func ServiceJSONNew(rawurl string, secs int) Service {
 	u, err := url.Parse(rawurl)
 	nilOrDie(err, "invalid http endpoint url")
-	ticker := time.NewTicker(time.Duration(secs) * time.Second)
 	hooks := make([]HookSignature, 0)
-	tchan := make(chan int)
+
+	atomic.AddUint64(&lastID, 1)
 
 	return Service{
-		URL:        *u,
-		Secs:       secs,
-		hooks:      hooks,
-		ticker:     ticker,
-		running:    false,
-		tickerChan: tchan,
-		immediate:  false,
-		offset:     0,
+		url:       u,
+		secs:      secs,
+		hooks:     hooks,
+		immediate: false,
+		offset:    0,
+		repeat:    false,
+		id:        lastID,
+		absSecs:   0,
 	}
 }
 
 // Stop service will stop the ticker, and gracefully exit it.
+// TODO DEPRACATED
 func (s *Service) Stop() {
-	log.Print("stopping service: ", s.URL.String())
-	s.ticker.Stop()
-	s.tickerChan <- 0
-	close(s.tickerChan)
+	log.Print("stopping service: ", s.url.String())
+	log.Fatal("do not run me no more")
+}
+
+// AbsSecs sets the absolute seconds of last timer addition
+func (s *Service) AbsSecs(secs int) {
+	s.absSecs = secs
+}
+
+// GetAbsSecs returns the absolute seconds of last timer addition
+func (s *Service) GetAbsSecs() int {
+	return s.absSecs
 }
 
 // AddHook appends a hook to the service
@@ -94,11 +144,125 @@ func (s *Service) NumHooks() int {
 }
 
 // Immediate will make the service run immediately
-func (s *Service) Immediate() {
-	s.immediate = true
+func (s *Service) Immediate(val bool) {
+	s.immediate = val
+}
+
+// IsImmediate returns true if service is immediate
+func (s *Service) IsImmediate() bool {
+	return s.immediate
 }
 
 // Offset sets the time before the service starts ticking
 func (s *Service) Offset(offset int) {
 	s.offset = offset
+}
+
+// Repeat makes the service repeatable
+func (s *Service) Repeat(rep bool) {
+	s.repeat = rep
+}
+
+// IsRepeating says whether a service repeats or not
+func (s *Service) IsRepeating() bool {
+	return s.repeat
+}
+
+// ID returns the unique identifier of the service
+func (s *Service) ID() uint64 {
+	return s.id
+}
+
+// GetSecs returns the number of seconds
+func (s *Service) GetSecs() int {
+	return s.secs
+}
+
+// UniqStr combines the label and id in order to have a unique, human
+// readable label.
+func (s *Service) UniqStr() string {
+	return fmt.Sprintf("%s-%d", *s.Label, s.id)
+}
+
+// DataRepo sets where the data processed should be stored in
+func (s *Service) DataRepo(repo *StatusServer) {
+	s.repo = repo
+}
+
+// Execute the service
+func (s *Service) Execute() {
+	// TODO this should eventually be split into something else
+	// (ie services should have some sort of interface, and split
+	// the logic of http querying and hook execution)
+	if s.url != nil && s.repo != nil {
+		// If there is a url and repo specified, then fetch
+		// the data and store it
+		jsonQuery(s, s.repo)
+	}
+
+	for _, hook := range s.hooks {
+		hook(s.repo)
+	}
+}
+
+// SetSecs sets the seconds of the service to fire on. This will not
+// take effect on the wheel, unless it's a repeatable service, and was
+// re-added on the next tick.
+func (s *Service) SetSecs(secs int) {
+	s.secs = secs
+}
+
+// GetOffset returns the offset time of the service
+func (s *Service) GetOffset() int {
+	return s.offset
+}
+
+func (s *Service) String() string {
+	return fmt.Sprintf(
+		"Service<url:%v secs:%d hooks:%v immediate:%t offset:%d repeat:%t label:%v id:%d repo:%v>",
+		s.url,
+		s.secs,
+		s.hooks,
+		s.immediate,
+		s.offset,
+		s.repeat,
+		s.Label,
+		s.id,
+		s.repo)
+}
+
+func jsonQuery(s *Service, t *StatusServer) {
+	address := s.url.String()
+	log.Println("EXECUTE THE JSON THING")
+
+	resp, err := http.Get(address)
+	if err != nil {
+		message := "problem getting response"
+		nilAndOk(err, message)
+		t.Update(address, serviceError{Error: message})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		buff := fmt.Sprintf("got non 200 code: %d", resp.StatusCode)
+		t.Update(address, serviceError{Error: buff})
+		return
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		message := "problem reading data from endpoint"
+		nilAndOk(err, message)
+		t.Update(address, serviceError{Error: message})
+		return
+	}
+
+	var json EndpointJSON = parseEndpointJSON(body[:])
+
+	// The applications of contracts/results should only be done
+	// for know json service endpoints. If we have a custom hook,
+	// the hook must be the one that decides what goes in the
+	// status cache.
+	t.Update(address, json) // TODO: better use service.UniqStr() here
 }
