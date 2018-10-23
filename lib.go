@@ -38,16 +38,19 @@ const (
 type Session struct {
 	Services      []Service
 	StatusServers []StatusServer
-	Alerter       AlertFunc
-	AlertTime     int
+	Alerter       *Alerter
 }
 
 // Start starts a cynic instance, with any provided hooks.
 func Start(session Session) {
+	session.Alerter.Start()
+	defer session.Alerter.Stop()
+
 	wheel := WheelNew()
 
 	for i := 0; i < len(session.Services); i++ {
 		wheel.Add(&session.Services[i])
+		session.Services[i].alerter = session.Alerter
 	}
 
 	ticker := time.NewTicker(time.Second)
