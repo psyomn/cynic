@@ -52,9 +52,8 @@ func (s *ServiceBuilder) Build() (Session, bool) {
 	ret := s.makeRepeatable() && s.makeDistributeEvents()
 
 	sess := Session{
-		Services:  s.services,
-		Alerter:   nil,
-		AlertTime: 0,
+		Services: s.services,
+		Alerter:  nil,
 	}
 
 	return sess, ret

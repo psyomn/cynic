@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/psyomn/cynic"
 )
@@ -58,9 +59,21 @@ func usage() {
 
 // This is to show that you can have a simple alerter, if something is
 // detected to be awry in the monitoring.
-func exampleAlerter(_ []cynic.AlertMessage) {
-	fmt.Println("##################################")
-	fmt.Println("# Hey you! Better pay attention! #")
+func exampleAlerter(messages []cynic.AlertMessage) {
+	fmt.Println("############################################")
+	fmt.Println("# Hey you! Better pay attention!            ")
+	fmt.Println("############################################")
+	fmt.Println("# messages: ")
+
+	for ix, el := range messages {
+		fmt.Println("# ", ix)
+		fmt.Println("#  response: ", el.Response)
+		fmt.Println("#  endpoint: ", el.Endpoint)
+		fmt.Println("#  now     : ", el.Now)
+		fmt.Println("#  cynichos: ", el.CynicHostname)
+		fmt.Println("#        ##########################")
+	}
+
 	fmt.Println("##################################")
 }
 
@@ -109,7 +122,7 @@ func anotherExampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 
 func finalHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 	fmt.Println("IT'S THE FINAL HOOKDOWN")
-	return false, result{
+	return (time.Now().Unix()%2 == 0), result{
 		Alert:   false,
 		Message: "I feel calm and collected inside.",
 	}
@@ -166,11 +179,11 @@ func main() {
 		services[i].DataRepo(&statusServer)
 	}
 
+	alerter := cynic.AlerterNew(20, exampleAlerter)
 	session := cynic.Session{
 		Services:      services,
-		Alerter:       exampleAlerter,
+		Alerter:       &alerter,
 		StatusServers: statusServers,
-		AlertTime:     20, // check status every 20 seconds
 	}
 
 	var wg sync.WaitGroup

@@ -70,6 +70,8 @@ type Service struct {
 	repo *StatusServer
 
 	absSecs int
+
+	alerter *Alerter
 }
 
 var lastID uint64
@@ -92,6 +94,7 @@ func ServiceNew(secs int) Service {
 		repeat:    false,
 		id:        lastID,
 		absSecs:   0,
+		alerter:   nil,
 	}
 }
 
@@ -113,6 +116,7 @@ func ServiceJSONNew(rawurl string, secs int) Service {
 		repeat:    false,
 		id:        lastID,
 		absSecs:   0,
+		alerter:   nil,
 	}
 }
 
@@ -201,7 +205,21 @@ func (s *Service) Execute() {
 	}
 
 	for _, hook := range s.hooks {
-		hook(s.repo)
+		ok, result := hook(s.repo)
+		s.maybeAlert(ok, result)
+	}
+}
+
+func (s *Service) maybeAlert(shouldAlert bool, result interface{}) {
+	if s.alerter == nil || !shouldAlert {
+		return
+	}
+
+	s.alerter.Ch <- AlertMessage{
+		Response:      result,
+		Endpoint:      "TODO",
+		Now:           "TODO",
+		CynicHostname: "TODO",
 	}
 }
 
@@ -233,7 +251,6 @@ func (s *Service) String() string {
 
 func jsonQuery(s *Service, t *StatusServer) {
 	address := s.url.String()
-	log.Println("EXECUTE THE JSON THING")
 
 	resp, err := http.Get(address)
 	if err != nil {
