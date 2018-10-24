@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/psyomn/cynic"
@@ -35,6 +36,38 @@ func TestServiceIdIncreaseMonotonically(t *testing.T) {
 	assert(t, s1.ID() != s2.ID() &&
 		s1.ID() != s3.ID() &&
 		s2.ID() != s3.ID())
+}
+
+func TestAtomicServiceIds(t *testing.T) {
+	var wg sync.WaitGroup
+	routines := 30
+	serviceCount := 20
+
+	var ids sync.Map
+
+	for j := 0; j < routines; j++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for i := 0; i < serviceCount; i++ {
+				service := cynic.ServiceNew(1)
+				serviceID := service.ID()
+
+				if actual, ok := ids.Load(serviceID); ok {
+					ids.Store(serviceID, actual.(int)+1)
+				} else {
+					ids.Store(serviceID, 1)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	ids.Range(func(_, v interface{}) bool {
+		assert(t, v.(int) == 1)
+		return true
+	})
 }
 
 func TestServiceWithQueryAndRepo(t *testing.T) {

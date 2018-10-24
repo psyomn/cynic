@@ -76,15 +76,11 @@ type Service struct {
 
 var lastID uint64
 
-// TODO make sure that this is used everywhere.
-type serviceError struct {
-	Error string `json:"error"`
-}
-
 // ServiceNew creates a new service that is primarily used for pure
 // execution
 func ServiceNew(secs int) Service {
-	atomic.AddUint64(&lastID, 1)
+	id := atomic.AddUint64(&lastID, 1)
+
 	return Service{
 		url:       nil,
 		secs:      secs,
@@ -92,7 +88,7 @@ func ServiceNew(secs int) Service {
 		immediate: false,
 		offset:    0,
 		repeat:    false,
-		id:        lastID,
+		id:        id,
 		absSecs:   0,
 		alerter:   nil,
 	}
@@ -250,6 +246,10 @@ func (s *Service) String() string {
 }
 
 func jsonQuery(s *Service, t *StatusServer) {
+	type serviceError struct {
+		Error string `json:"error"`
+	}
+
 	address := s.url.String()
 
 	resp, err := http.Get(address)

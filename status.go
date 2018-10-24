@@ -35,7 +35,6 @@ type StatusServer struct {
 	listener        net.Listener
 	server          *http.Server
 	alerter         *time.Ticker
-	wg              *sync.WaitGroup
 	root            string
 }
 
@@ -68,7 +67,6 @@ func StatusServerNew(port, root string) StatusServer {
 		listener:        listener,
 		server:          server,
 		alerter:         nil,
-		wg:              nil,
 		root:            root,
 	}
 }
