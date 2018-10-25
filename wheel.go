@@ -54,11 +54,14 @@ type Wheel struct {
 	daysCnt  int
 
 	ticks int
+
+	timestamp int64
 }
 
 // WheelNew creates a new, empty, timing wheel.
 func WheelNew() *Wheel {
 	var tw Wheel
+	tw.timestamp = time.Now().Unix()
 	return &tw
 }
 
@@ -100,6 +103,46 @@ func (s *Wheel) Tick() {
 	}
 
 	s.ticks++
+}
+
+// AddUnixTime temporary alternative to figure out fucky offsets
+func (s *Wheel) AddUnixTime(service *Service) {
+	dayOffset := func(timestamp int64) int64 {
+		return timestamp + int64(wheelSecondsInMinute)
+	}
+
+	hourOffset := func(timestamp int64) int64 {
+		return timestamp + int64(wheelSecondsInHour)
+	}
+
+	minuteOffset := func(timestamp int64) int64 {
+		return timestamp + int64(wheelSecondsInDay)
+	}
+
+	seconds := service.GetSecs()
+	eventTime := s.timestamp + int64(seconds) + int64(s.secsCnt)
+
+	// Calculate bucket
+	var daysCount, hourCount, minuteCount, secondCount int64
+	if eventTime >= dayOffset(s.timestamp) {
+		daysCount = eventTime / wheelSecondsInDay
+	} else if eventTime >= hourOffset(s.timestamp) {
+		hourCount = eventTime / wheelSecondsInHour
+	} else if eventTime >= minuteOffset(s.timestamp) {
+		minuteCount = eventTime / wheelSecondsInHour
+	} else /* seconds */ {
+		secondCount = s.timestamp - eventTime
+	}
+
+	log.Println("######################################")
+	log.Println("# Insert into indices: ")
+	log.Println("# dayscount: ", daysCount)
+	log.Println("# hourcount: ", hourCount)
+	log.Println("# minutecnt: ", minuteCount)
+	log.Println("# secondcnt: ", secondCount)
+	log.Println("######################################")
+
+	// Calculate offsets to bucket
 }
 
 // Add puts a service in the timing wheel, with respect to its expiry
@@ -264,6 +307,8 @@ func (s *Wheel) Run() {
 //// -- Private --
 
 func (s *Wheel) rotateMinutes() {
+	s.timestamp = wheelSecondsInMinute
+
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
 		s.secs[i] = tb
@@ -283,7 +328,8 @@ func (s *Wheel) rotateMinutes() {
 }
 
 func (s *Wheel) rotateHours() {
-	// log.Println("rotate hours") // TODO REMOVE
+	s.timestamp = wheelSecondsInHour
+
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
 		s.secs[i] = tb
@@ -309,6 +355,8 @@ func (s *Wheel) rotateHours() {
 }
 
 func (s *Wheel) rotateDays() {
+	s.timestamp = wheelSecondsInDay
+
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
 		s.secs[i] = tb

@@ -546,3 +546,10 @@ func TestZeroTime(t *testing.T) {
 
 	assert(t, count == 1)
 }
+
+func TestUnix(t *testing.T) {
+	w := cynic.WheelNew()
+	ser := cynic.ServiceNew(1)
+
+	w.AddUnixTime(&ser)
+}
