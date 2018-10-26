@@ -69,9 +69,11 @@ type Service struct {
 
 	repo *StatusServer
 
-	absSecs int
+	absSecs int // TODO: eventually remove
 
 	alerter *Alerter
+
+	absExpiry int64
 }
 
 var lastID uint64
@@ -229,6 +231,19 @@ func (s *Service) SetSecs(secs int) {
 // GetOffset returns the offset time of the service
 func (s *Service) GetOffset() int {
 	return s.offset
+}
+
+// SetAbsExpiry sets the timestamp that the service is suposed to
+// expire on.
+func (s *Service) SetAbsExpiry(ts int64) {
+	log.Println("set expiry: ", ts)
+	s.absExpiry = ts + int64(s.GetSecs())
+	log.Println("set expiry after: ", s.absExpiry)
+}
+
+// GetAbsExpiry gets the timestamp
+func (s *Service) GetAbsExpiry() int64 {
+	return s.absExpiry
 }
 
 func (s *Service) String() string {

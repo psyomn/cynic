@@ -73,7 +73,7 @@ func TestTickAll(t *testing.T) {
 			isExpired := false
 
 			time := givenTime
-			service := cynic.ServiceJSONNew("www.google.com", time)
+			service := cynic.ServiceNew(time)
 			service.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
 				isExpired = true
 				return false, 0
@@ -86,6 +86,9 @@ func TestTickAll(t *testing.T) {
 
 			for i := 0; i < time; i++ {
 				wheel.Tick()
+				if isExpired {
+					log.Println("expired before its time")
+				}
 				assert(t, !isExpired)
 			}
 
@@ -549,7 +552,25 @@ func TestZeroTime(t *testing.T) {
 
 func TestUnix(t *testing.T) {
 	w := cynic.WheelNew()
-	ser := cynic.ServiceNew(1)
 
-	w.AddUnixTime(&ser)
+	times := [...]int{
+		3, 59,
+
+		1 * minute,
+		2 * minute, 2*minute + 1,
+		3 * minute, 3*minute + 1*second,
+
+		10 * minute,
+
+		1 * hour, 1*hour + 1*second,
+		23 * hour, 24 * hour,
+
+		1 * day,
+		2 * day,
+		8 * day}
+
+	for _, el := range times {
+		ser := cynic.ServiceNew(el)
+		w.Add(&ser)
+	}
 }

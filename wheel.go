@@ -106,9 +106,11 @@ func (s *Wheel) Tick() {
 }
 
 // AddUnixTime temporary alternative to figure out fucky offsets
-func (s *Wheel) AddUnixTime(service *Service) {
+func (s *Wheel) Add(service *Service) {
+	service.SetAbsExpiry(s.timestamp)
+
 	dayOffset := func(timestamp int64) int64 {
-		return timestamp + int64(wheelSecondsInMinute)
+		return timestamp + int64(wheelSecondsInDay)
 	}
 
 	hourOffset := func(timestamp int64) int64 {
@@ -116,33 +118,87 @@ func (s *Wheel) AddUnixTime(service *Service) {
 	}
 
 	minuteOffset := func(timestamp int64) int64 {
-		return timestamp + int64(wheelSecondsInDay)
+		return timestamp + int64(wheelSecondsInMinute)
 	}
 
 	seconds := service.GetSecs()
 	eventTime := s.timestamp + int64(seconds) + int64(s.secsCnt)
 
 	// Calculate bucket
-	var daysCount, hourCount, minuteCount, secondCount int64
+	var dayIndex, hourIndex, minuteIndex, secondIndex int
+	diff := int(eventTime - s.timestamp)
 	if eventTime >= dayOffset(s.timestamp) {
-		daysCount = eventTime / wheelSecondsInDay
+		dayIndex = diff / wheelSecondsInDay
 	} else if eventTime >= hourOffset(s.timestamp) {
-		hourCount = eventTime / wheelSecondsInHour
+		hourIndex = diff / wheelSecondsInHour
 	} else if eventTime >= minuteOffset(s.timestamp) {
-		minuteCount = eventTime / wheelSecondsInHour
+		minuteIndex = diff / wheelSecondsInMinute
 	} else /* seconds */ {
-		secondCount = s.timestamp - eventTime
+		secondIndex = diff
 	}
 
-	log.Println("######################################")
-	log.Println("# Insert into indices: ")
-	log.Println("# dayscount: ", daysCount)
-	log.Println("# hourcount: ", hourCount)
-	log.Println("# minutecnt: ", minuteCount)
-	log.Println("# secondcnt: ", secondCount)
-	log.Println("######################################")
-
 	// Calculate offsets to bucket
+	secondIndex += s.secsCnt
+	minuteIndex += s.minsCnt
+	hourIndex += s.hoursCnt
+	dayIndex += s.daysCnt
+
+	if secondIndex >= wheelMaxSecs {
+		secondIndex = secondIndex % wheelMaxSecs
+		minuteIndex++
+	}
+
+	if minuteIndex >= wheelMaxMins {
+		minuteIndex = minuteIndex % wheelMaxMins
+		hourIndex++
+	}
+
+	if hourIndex >= wheelMaxHours {
+		hourIndex = hourIndex % wheelMaxHours
+		dayIndex++
+	}
+
+	if dayIndex >= wheelMaxDays {
+		// TODO recheck me
+		dayIndex = dayIndex % wheelMaxDays
+	}
+
+	if true {
+		log.Println("######################################")
+		log.Println("# Insert into indices: ###############")
+		log.Println("# timestamp: ", s.timestamp)
+		log.Println("# days indx: ", dayIndex)
+		log.Println("# hour indx: ", hourIndex)
+		log.Println("# minute ix: ", minuteIndex)
+		log.Println("# second ix: ", secondIndex)
+		log.Println("######################################")
+	}
+
+	// Once calculated indices, actually place the service/event
+	// where it belongs.
+	if dayIndex > 0 {
+		index := dayIndex - 1
+		s.days[index] = append(s.days[index], service)
+		return
+	}
+
+	if hourIndex > 0 {
+		index := hourIndex - 1
+		s.hours[index] = append(s.hours[index], service)
+		return
+	}
+
+	if minuteIndex > 0 {
+		index := minuteIndex - 1
+		s.mins[index] = append(s.mins[index], service)
+		return
+	}
+
+	if secondIndex > 0 {
+		index := secondIndex
+		s.secs[index] = append(s.secs[index], service)
+		return
+	}
 }
 
 // Add puts a service in the timing wheel, with respect to its expiry
@@ -151,7 +207,7 @@ func (s *Wheel) AddUnixTime(service *Service) {
 //
 // TODO: A better way to do this would be to add relative
 //   timestamps. That would probably simplify a lot of things.
-func (s *Wheel) Add(service *Service) {
+func (s *Wheel) AddDerprecated(service *Service) {
 	// This FUNCTION should calculate the indices
 	// where new timers should be added
 
@@ -307,8 +363,6 @@ func (s *Wheel) Run() {
 //// -- Private --
 
 func (s *Wheel) rotateMinutes() {
-	s.timestamp = wheelSecondsInMinute
-
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
 		s.secs[i] = tb
@@ -318,17 +372,22 @@ func (s *Wheel) rotateMinutes() {
 	for _, el := range s.mins[s.minsCnt] {
 		index := 0
 		if el.IsRepeating() {
-			index = el.GetAbsSecs() % wheelMaxSecs
+			index = int(el.GetAbsExpiry()-s.timestamp) % wheelMaxSecs
 		} else {
-			index = el.secs % wheelMaxSecs
+			index = int(el.GetAbsExpiry()-s.timestamp) % wheelMaxSecs
 		}
 
+		log.Println("AAAAA/ abs expiry : ", el.GetAbsExpiry())
+		log.Println("AAAAA/ w timestamp: ", s.timestamp)
+		log.Println(index)
 		s.secs[index] = append(s.secs[index], el)
 	}
+
+	s.timestamp += wheelSecondsInMinute
 }
 
 func (s *Wheel) rotateHours() {
-	s.timestamp = wheelSecondsInHour
+	log.Println("rotate hours: ", s.hoursCnt)
 
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
@@ -342,20 +401,24 @@ func (s *Wheel) rotateHours() {
 
 	// for everything in 98d:12:XX:XX
 	for _, el := range s.hours[s.hoursCnt] {
-		index := ((el.secs % wheelSecondsInHour) / wheelSecondsInMinute)
+		index := (el.GetAbsExpiry() - s.timestamp) % wheelSecondsInHour / wheelSecondsInMinute
+
 		if index == 0 {
 			// dealing with seconds
-			secIndex := (el.secs % wheelSecondsInHour)
+			secIndex := (el.GetAbsExpiry() - s.timestamp) % wheelSecondsInMinute
 			s.secs[secIndex] = append(s.secs[secIndex], el)
 		} else {
 			index--
+			log.Println("rotate index: ", index)
 			s.mins[index] = append(s.mins[index], el)
 		}
 	}
+
+	s.timestamp += wheelSecondsInHour
 }
 
 func (s *Wheel) rotateDays() {
-	s.timestamp = wheelSecondsInDay
+	log.Println("rotate days")
 
 	for i := 0; i < len(s.secs); i++ {
 		var tb timerBuff
@@ -375,23 +438,30 @@ func (s *Wheel) rotateDays() {
 	// for everything in 98d:XX:XX:XX
 	for _, el := range s.days[s.daysCnt] {
 		// Place in hours
-		hourIndex := ((el.GetAbsSecs() % wheelSecondsInDay) / wheelSecondsInHour)
+		hourIndex := (el.GetAbsExpiry() % wheelSecondsInDay) / wheelSecondsInHour
 		if hourIndex > 0 {
 			hourIndex--
+			log.Println("placing in hour: ", hourIndex)
+			log.Println("wheel timstamp : ", s.timestamp)
+			log.Println("absexp         : ", el.GetAbsExpiry())
 			s.hours[hourIndex] = append(s.hours[hourIndex], el)
 			continue
 		}
 
 		// Place in minutes
-		minuteIndex := ((el.GetAbsSecs() % wheelSecondsInHour) / wheelSecondsInMinute)
+		minuteIndex := (el.GetAbsExpiry() % wheelSecondsInHour) / wheelSecondsInMinute
 		if minuteIndex > 0 {
 			minuteIndex--
+			log.Println("placing in minute", minuteIndex)
 			s.mins[minuteIndex] = append(s.mins[minuteIndex], el)
 			continue
 		}
 
 		// Place in seconds
-		secondIndex := (el.GetAbsSecs() % wheelSecondsInMinute)
+		secondIndex := el.GetAbsExpiry() % wheelSecondsInMinute
+		log.Println("placing in seconds: ", secondIndex)
 		s.secs[secondIndex] = append(s.secs[secondIndex], el)
 	}
+
+	s.timestamp += wheelSecondsInDay
 }
