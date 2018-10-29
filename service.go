@@ -236,9 +236,7 @@ func (s *Service) GetOffset() int {
 // SetAbsExpiry sets the timestamp that the service is suposed to
 // expire on.
 func (s *Service) SetAbsExpiry(ts int64) {
-	log.Println("set expiry: ", ts)
 	s.absExpiry = ts + int64(s.GetSecs())
-	log.Println("set expiry after: ", s.absExpiry)
 }
 
 // GetAbsExpiry gets the timestamp

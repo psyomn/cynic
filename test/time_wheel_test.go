@@ -410,6 +410,7 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 	ser.Repeat(true)
 	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		count++
+		log.Println("COUNT++")
 		return false, 0
 	})
 
@@ -426,6 +427,9 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 	// Test first rotation
 	w.Tick()
 	w.Tick()
+	if count != 1 {
+		log.Println("failed at first rotation")
+	}
 	assert(t, count == 1)
 
 	// Test second rotation
@@ -436,6 +440,9 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 	}
 
 	w.Tick()
+	if count != 61 {
+		log.Println("failed at second rotation")
+	}
 	assert(t, count == 61)
 
 	// Test third rotation
@@ -445,8 +452,12 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 		}
 	}
 
+	log.Println("count: ", count)
 	w.Tick()
 
+	if count != 121 {
+		log.Println("failed at third rotation")
+	}
 	assert(t, count == 121)
 }
 
@@ -457,6 +468,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 			ser := cynic.ServiceNew(interval)
 			ser.Repeat(true)
 			ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+				log.Print(".")
 				count++
 				return false, 0
 			})
@@ -466,6 +478,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 			w.Tick() // put cursor on top of just inserted timer
 
 			for i := 0; i < timerange-interval; i++ {
+				log.Println("Tick : ", i)
 				w.Tick()
 			}
 
