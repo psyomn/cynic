@@ -81,6 +81,10 @@ var lastID uint64
 // ServiceNew creates a new service that is primarily used for pure
 // execution
 func ServiceNew(secs int) Service {
+	if secs <= 0 {
+		log.Fatal("NO. GOD. NO. GOD PLEASE NO. NO. NO. NOOOOOOOO.")
+	}
+
 	id := atomic.AddUint64(&lastID, 1)
 
 	return Service{
@@ -99,6 +103,10 @@ func ServiceNew(secs int) Service {
 // ServiceJSONNew creates a new service instance, which will query a
 // json restful endpoint.
 func ServiceJSONNew(rawurl string, secs int) Service {
+	if secs <= 0 {
+		log.Fatal("NO. GOD. NO. GOD PLEASE NO. NO. NO. NOOOOOOOO.")
+	}
+
 	u, err := url.Parse(rawurl)
 	nilOrDie(err, "invalid http endpoint url")
 	hooks := make([]HookSignature, 0)
@@ -183,7 +191,15 @@ func (s *Service) GetSecs() int {
 // UniqStr combines the label and id in order to have a unique, human
 // readable label.
 func (s *Service) UniqStr() string {
-	return fmt.Sprintf("%s-%d", *s.Label, s.id)
+	var ret string
+
+	if s.Label != nil {
+		ret = fmt.Sprintf("%s-%d", *s.Label, s.id)
+	} else {
+		ret = fmt.Sprintf("%d", s.id)
+	}
+
+	return ret
 }
 
 // DataRepo sets where the data processed should be stored in

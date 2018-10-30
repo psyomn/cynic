@@ -410,7 +410,6 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 	ser.Repeat(true)
 	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		count++
-		log.Println("COUNT++")
 		return false, 0
 	})
 
@@ -423,6 +422,8 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 	}
 
 	w.Add(&ser)
+	log.Println(w)
+	log.Println("==========================")
 
 	// Test first rotation
 	w.Tick()
@@ -442,6 +443,8 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 	w.Tick()
 	if count != 61 {
 		log.Println("failed at second rotation")
+		log.Println("expected count 61, but got: ", count)
+		log.Println(w)
 	}
 	assert(t, count == 61)
 
@@ -457,6 +460,8 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 
 	if count != 121 {
 		log.Println("failed at third rotation")
+		log.Println("expected count 121, but got: ", count)
+		log.Println(w)
 	}
 	assert(t, count == 121)
 }
@@ -468,7 +473,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 			ser := cynic.ServiceNew(interval)
 			ser.Repeat(true)
 			ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
-				log.Print(".")
+				// log.Print(".")
 				count++
 				return false, 0
 			})
@@ -478,7 +483,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 			w.Tick() // put cursor on top of just inserted timer
 
 			for i := 0; i < timerange-interval; i++ {
-				log.Println("Tick : ", i)
+				// log.Println("Tick : ", i)
 				w.Tick()
 			}
 
@@ -490,6 +495,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 				log.Println("expected ticks: ", expectedCount)
 				log.Println("actual ticks:   ", count)
 				log.Println("abs secs:       ", ser.GetAbsSecs())
+				log.Println("wheel: \n", w)
 			}
 			assert(t, count == expectedCount)
 		}
@@ -513,6 +519,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 		testCase{"1 sec within 1 hour", 1 * second, 1 * hour},
 		testCase{"59 sec within 10 min", 59 * second, 10 * minute},
 		testCase{"60 sec within 10 min", 60 * second, 10 * minute},
+		// testCase{"1 sec within 3 hour", 1 * second, 3 * hour},
 
 		testCase{"10 sec within 1 min", 10 * second, 1 * minute},
 		testCase{"10 sec within 2 min", 10 * second, 2 * minute},
@@ -520,10 +527,6 @@ func TestRepeatedRotationTables(t *testing.T) {
 		testCase{"13 sec within 2 min", 13 * second, 2 * minute},
 
 		// days
-		//   FIXME #24: these are slightly off by a few seconds;
-		//     for some usecases this is okay, but the way
-		//     that things are added
-		//
 		// testCase{"1 sec within 1 day", 1 * second, 1 * day},
 		// testCase{"2 sec within 1 day", 2 * second, 1 * day},
 		// testCase{"33 sec within 1 day", 33 * second, 1 * day},
@@ -545,45 +548,5 @@ func TestRepeatedRotationTables(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, setup(tc.interval, tc.timerange))
-	}
-}
-
-func TestZeroTime(t *testing.T) {
-	var count int
-	ser := cynic.ServiceNew(0)
-	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
-		count++
-		return false, 0
-	})
-	w := cynic.WheelNew()
-
-	w.Add(&ser)
-	w.Tick()
-
-	assert(t, count == 1)
-}
-
-func TestUnix(t *testing.T) {
-	w := cynic.WheelNew()
-
-	times := [...]int{
-		3, 59,
-
-		1 * minute,
-		2 * minute, 2*minute + 1,
-		3 * minute, 3*minute + 1*second,
-
-		10 * minute,
-
-		1 * hour, 1*hour + 1*second,
-		23 * hour, 24 * hour,
-
-		1 * day,
-		2 * day,
-		8 * day}
-
-	for _, el := range times {
-		ser := cynic.ServiceNew(el)
-		w.Add(&ser)
 	}
 }
