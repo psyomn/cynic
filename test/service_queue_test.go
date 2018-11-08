@@ -67,3 +67,20 @@ func TestServiceQueueTimestamp(t *testing.T) {
 	}
 
 }
+
+func BenchmarkAdditionsPerSecond(b *testing.B) {
+	serviceq := makeServiceQueue()
+	services := make([]*Service, 0)
+
+	numNodes := 5000
+	for i := 0; i < numNodes; i++ {
+		services = append(services, &cynic.ServiceNew(i))
+	}
+
+	b.Resettimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < numNodes; j++ {
+			heap.Push(&serviceq, services[j])
+		}
+	}
+}
