@@ -49,6 +49,11 @@ test-cover-anal:
 	go tool cover -html=cover.out -o cover.html
 .PHONY: test-cover-anal
 
+test-bench:
+	@echo -- run benchmarks
+	go test -v -bench=./...
+.PHONY: test-bench
+
 # https://github.com/dominikh/go-tools#tools
 test-unused:
 	@echo -- run unused code checker
