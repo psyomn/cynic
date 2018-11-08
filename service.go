@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync/atomic"
+	"time"
 )
 
 const (
@@ -74,6 +75,9 @@ type Service struct {
 	alerter *Alerter
 
 	absExpiry int64
+
+	index    int
+	priority int
 }
 
 var lastID uint64
@@ -87,6 +91,8 @@ func ServiceNew(secs int) Service {
 
 	id := atomic.AddUint64(&lastID, 1)
 
+	priority := secs + int(time.Now().Unix())
+
 	return Service{
 		url:       nil,
 		secs:      secs,
@@ -97,6 +103,8 @@ func ServiceNew(secs int) Service {
 		id:        id,
 		absSecs:   0,
 		alerter:   nil,
+
+		priority: priority,
 	}
 }
 
@@ -111,6 +119,8 @@ func ServiceJSONNew(rawurl string, secs int) Service {
 	nilOrDie(err, "invalid http endpoint url")
 	hooks := make([]HookSignature, 0)
 
+	priority := secs + int(time.Now().Unix())
+
 	atomic.AddUint64(&lastID, 1)
 
 	return Service{
@@ -123,6 +133,7 @@ func ServiceJSONNew(rawurl string, secs int) Service {
 		id:        lastID,
 		absSecs:   0,
 		alerter:   nil,
+		priority:  priority,
 	}
 }
 
