@@ -15,12 +15,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package cynictesting
 
 import (
 	"container/heap"
-	"log"
 	"testing"
 
 	"github.com/psyomn/cynic"
@@ -68,17 +66,24 @@ func TestServiceQueueTimestamp(t *testing.T) {
 
 }
 
+func TestPeekEmpty(t *testing.T) {
+	services := makeServiceQueue()
+	_, ok := services.PeekID()
+	assert(t, !ok)
+}
+
 func BenchmarkAdditionsPerSecond(b *testing.B) {
-	serviceq := makeServiceQueue()
-	services := make([]*Service, 0)
+	services := make([]*cynic.Service, 0)
 
 	numNodes := 5000
 	for i := 0; i < numNodes; i++ {
-		services = append(services, &cynic.ServiceNew(i))
+		ser := cynic.ServiceNew(i + 1)
+		services = append(services, &ser)
 	}
 
-	b.Resettimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		serviceq := makeServiceQueue()
 		for j := 0; j < numNodes; j++ {
 			heap.Push(&serviceq, services[j])
 		}
