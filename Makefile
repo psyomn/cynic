@@ -1,7 +1,7 @@
 # Taken from github.com/RAttab/gonfork
 all: build verify test
 verify: vet lint
-test: test-cover test-race
+test: test-cover test-race test-unused test-bench
 .PHONY: all verify test
 
 fmt:
@@ -51,7 +51,7 @@ test-cover-anal:
 
 test-bench:
 	@echo -- run benchmarks
-	go test -v -bench=./...
+	go test -v -bench=.
 .PHONY: test-bench
 
 # https://github.com/dominikh/go-tools#tools
