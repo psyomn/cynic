@@ -18,6 +18,7 @@ limitations under the License.
 package cynic
 
 import (
+	"container/heap"
 	"time"
 )
 
@@ -39,9 +40,40 @@ func WheelNew() *Wheel {
 
 // Tick moves the cursor of the timing wheel, by one second.
 func (s *Wheel) Tick() {
+	for {
+		if s.services.Len() == 0 {
+			break
+		}
+
+		rootTimestamp, _ := s.services.PeekTimestamp()
+
+		if s.ticks >= int(rootTimestamp) {
+			service := heap.Pop(&s.services).(*Service)
+			service.Execute()
+
+			if service.IsRepeating() {
+				s.Add(service)
+			}
+
+		} else {
+			break
+		}
+	}
+
+	s.ticks++
 }
 
 func (s *Wheel) Add(service *Service) {
+	var expiry int64
+
+	if service.IsImmediate() {
+		expiry = 1
+		service.Immediate(false)
+	} else {
+		expiry = int64(service.GetSecs() + s.ticks)
+	}
+
+	service.SetAbsExpiry(expiry)
 	s.services.Push(service)
 }
 

@@ -194,9 +194,14 @@ func (s *Service) ID() uint64 {
 	return s.id
 }
 
-// GetSecs returns the number of seconds
+// GetSecs returns the number of seconds.
 func (s *Service) GetSecs() int {
 	return s.secs
+}
+
+// SetSecs sets the seconds of the service to fire on.
+func (s *Service) SetSecs(secs int) {
+	s.secs = secs
 }
 
 // UniqStr combines the label and id in order to have a unique, human
@@ -248,13 +253,6 @@ func (s *Service) maybeAlert(shouldAlert bool, result interface{}) {
 	}
 }
 
-// SetSecs sets the seconds of the service to fire on. This will not
-// take effect on the wheel, unless it's a repeatable service, and was
-// re-added on the next tick.
-func (s *Service) SetSecs(secs int) {
-	s.secs = secs
-}
-
 // GetOffset returns the offset time of the service
 func (s *Service) GetOffset() int {
 	return s.offset
@@ -263,7 +261,7 @@ func (s *Service) GetOffset() int {
 // SetAbsExpiry sets the timestamp that the service is suposed to
 // expire on.
 func (s *Service) SetAbsExpiry(ts int64) {
-	s.absExpiry = ts + int64(s.GetSecs())
+	s.absExpiry = ts
 }
 
 // GetAbsExpiry gets the timestamp
