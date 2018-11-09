@@ -17,10 +17,6 @@ limitations under the License.
 */
 package cynic
 
-import (
-	"container/heap"
-)
-
 type ServiceQueue []*Service
 
 func (pq ServiceQueue) Len() int { return len(pq) }
@@ -52,25 +48,21 @@ func (pq *ServiceQueue) Pop() interface{} {
 	return item
 }
 
-func (pq *ServiceQueue) Timestamp() int64 {
-	old := *pq
-	n := len(old)
-	item := old[n-1]
-	return item.absExpiry
-}
-
-// update modifies the priority and value of an Item in the queue.
-func (pq *ServiceQueue) update(item *Service, priority int) {
-	item.priority = priority
-	heap.Fix(pq, item.index)
-}
+// TODO probably can remove
+// func (pq *ServiceQueue) update(item *Service, priority int) {
+// 	item.priority = priority
+// 	heap.Fix(pq, item.index)
+// }
 
 // PeekTimestamp gives the timestamp at the root of the heap
-func (pq *ServiceQueue) PeekTimestamp() int64 {
+func (pq *ServiceQueue) PeekTimestamp() (int64, bool) {
+	if len(*pq) == 0 {
+		return 0, false
+	}
+
 	old := *pq
-	n := len(old)
-	item := old[n-1]
-	return item.absExpiry
+	item := old[0]
+	return item.absExpiry, true
 }
 
 // PeekID returns the id of the service at root
