@@ -17,6 +17,8 @@ limitations under the License.
 */
 package cynic
 
+// ServiceQueue is a priority queue that sorts events that are to
+// happen via their absolute expiry
 type ServiceQueue []*Service
 
 func (pq ServiceQueue) Len() int { return len(pq) }
@@ -32,6 +34,7 @@ func (pq ServiceQueue) Swap(i, j int) {
 	pq[j].index = j
 }
 
+// Push inserts an service/event into the priority queue
 func (pq *ServiceQueue) Push(x interface{}) {
 	n := len(*pq)
 	item := x.(*Service)
@@ -39,6 +42,7 @@ func (pq *ServiceQueue) Push(x interface{}) {
 	*pq = append(*pq, item)
 }
 
+// Pop retrieves the soonest event
 func (pq *ServiceQueue) Pop() interface{} {
 	old := *pq
 	n := len(old)
@@ -47,12 +51,6 @@ func (pq *ServiceQueue) Pop() interface{} {
 	*pq = old[0 : n-1]
 	return item
 }
-
-// TODO probably can remove
-// func (pq *ServiceQueue) update(item *Service, priority int) {
-// 	item.priority = priority
-// 	heap.Fix(pq, item.index)
-// }
 
 // PeekTimestamp gives the timestamp at the root of the heap
 func (pq *ServiceQueue) PeekTimestamp() (int64, bool) {

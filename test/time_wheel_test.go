@@ -302,11 +302,13 @@ func TestAddHalfMinute(t *testing.T) {
 
 	w := cynic.WheelNew()
 
-	// for {
-	// 	 if w.Tick(); w.Seconds() == 30 {
-	// 	 	break
-	// 	 }
-	// }
+	countTicks := 0
+	for {
+		if w.Tick(); countTicks == 30 {
+			break
+		}
+		countTicks++
+	}
 	w.Add(&ser)
 
 	w.Tick()
@@ -325,12 +327,14 @@ func TestAddLastMinuteSecond(t *testing.T) {
 
 	w := cynic.WheelNew()
 
-	// for {
-	// 	w.Tick()
-	// 	if w.Seconds() == 58 {
-	// 		break
-	// 	}
-	// }
+	countTicks := 0
+	for {
+		w.Tick()
+		countTicks++
+		if countTicks == 58 {
+			break
+		}
+	}
 	w.Add(&ser)
 
 	w.Tick() // expire 58
@@ -481,7 +485,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 		testCase{"1 sec within 1 hour", 1 * second, 1 * hour},
 		testCase{"59 sec within 10 min", 59 * second, 10 * minute},
 		testCase{"60 sec within 10 min", 60 * second, 10 * minute},
-		// testCase{"1 sec within 3 hour", 1 * second, 3 * hour},
+		testCase{"1 sec within 3 hour", 1 * second, 3 * hour},
 
 		testCase{"10 sec within 1 min", 10 * second, 1 * minute},
 		testCase{"10 sec within 2 min", 10 * second, 2 * minute},
@@ -489,13 +493,13 @@ func TestRepeatedRotationTables(t *testing.T) {
 		testCase{"13 sec within 2 min", 13 * second, 2 * minute},
 
 		// days
-		// testCase{"1 sec within 1 day", 1 * second, 1 * day},
-		// testCase{"2 sec within 1 day", 2 * second, 1 * day},
-		// testCase{"33 sec within 1 day", 33 * second, 1 * day},
-		// testCase{"43 sec within 1 day", 43 * second, 1 * day},
-		// testCase{"53 sec within 1 day", 53 * second, 1 * day},
-		// testCase{"10 minutes within 1 day", 10 * minute, 1 * day},
-		// testCase{"1 hour within 1 week", 1 * hour, 1 * week},
+		testCase{"1 sec within 1 day", 1 * second, 1 * day},
+		testCase{"2 sec within 1 day", 2 * second, 1 * day},
+		testCase{"33 sec within 1 day", 33 * second, 1 * day},
+		testCase{"43 sec within 1 day", 43 * second, 1 * day},
+		testCase{"53 sec within 1 day", 53 * second, 1 * day},
+		testCase{"10 minutes within 1 day", 10 * minute, 1 * day},
+		testCase{"1 hour within 1 week", 1 * hour, 1 * week},
 
 		testCase{"1 hour within 1 day", 1 * hour, 1 * day},
 		testCase{"4 hours within 1 day", 4 * hour, 1 * day},
