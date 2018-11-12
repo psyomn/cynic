@@ -423,7 +423,6 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 		}
 	}
 
-	log.Println("count: ", count)
 	w.Tick()
 
 	if count != 121 {
@@ -515,4 +514,37 @@ func TestRepeatedRotationTables(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, setup(tc.interval, tc.timerange))
 	}
+}
+
+func TestPlannerDelete(t *testing.T) {
+	var expire1, expire2 bool
+
+	planner := cynic.PlannerNew()
+	ser := cynic.ServiceNew(1)
+	ser2 := cynic.ServiceNew(1)
+
+	ser.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+		expire1 = true
+		return false, 0
+	})
+
+	ser2.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+		expire2 = true
+		return false, 0
+	})
+
+	planner.Add(&ser)
+	planner.Add(&ser2)
+
+	assert(t, planner.Delete(&ser))
+	assert(t, ser.IsDeleted())
+	assert(t, !ser2.IsDeleted())
+
+	planner.Tick()
+	planner.Tick()
+
+	// Make sure that the deleted service does not ever execute,
+	// since marked for deletion before tick
+	assert(t, expire1 == false)
+	assert(t, expire2 == true)
 }
