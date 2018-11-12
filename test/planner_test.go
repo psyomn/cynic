@@ -459,7 +459,6 @@ func TestRepeatedRotationTables(t *testing.T) {
 				log.Println("timerange:      ", timerange)
 				log.Println("expected ticks: ", expectedCount)
 				log.Println("actual ticks:   ", count)
-				log.Println("abs secs:       ", ser.GetAbsSecs())
 				log.Println("planner: \n", w)
 			}
 			assert(t, count == expectedCount)
