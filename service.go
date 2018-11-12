@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync/atomic"
+	"time"
 )
 
 const (
@@ -69,9 +70,14 @@ type Service struct {
 
 	repo *StatusServer
 
-	absSecs int
+	absSecs int // TODO: eventually remove
 
 	alerter *Alerter
+
+	absExpiry int64
+
+	index    int
+	priority int
 }
 
 var lastID uint64
@@ -79,7 +85,13 @@ var lastID uint64
 // ServiceNew creates a new service that is primarily used for pure
 // execution
 func ServiceNew(secs int) Service {
+	if secs <= 0 {
+		log.Fatal("NO. GOD. NO. GOD PLEASE NO. NO. NO. NOOOOOOOO.")
+	}
+
 	id := atomic.AddUint64(&lastID, 1)
+
+	priority := secs + int(time.Now().Unix())
 
 	return Service{
 		url:       nil,
@@ -91,15 +103,23 @@ func ServiceNew(secs int) Service {
 		id:        id,
 		absSecs:   0,
 		alerter:   nil,
+
+		priority: priority,
 	}
 }
 
 // ServiceJSONNew creates a new service instance, which will query a
 // json restful endpoint.
 func ServiceJSONNew(rawurl string, secs int) Service {
+	if secs <= 0 {
+		log.Fatal("NO. GOD. NO. GOD PLEASE NO. NO. NO. NOOOOOOOO.")
+	}
+
 	u, err := url.Parse(rawurl)
 	nilOrDie(err, "invalid http endpoint url")
 	hooks := make([]HookSignature, 0)
+
+	priority := secs + int(time.Now().Unix())
 
 	atomic.AddUint64(&lastID, 1)
 
@@ -113,6 +133,7 @@ func ServiceJSONNew(rawurl string, secs int) Service {
 		id:        lastID,
 		absSecs:   0,
 		alerter:   nil,
+		priority:  priority,
 	}
 }
 
@@ -173,15 +194,28 @@ func (s *Service) ID() uint64 {
 	return s.id
 }
 
-// GetSecs returns the number of seconds
+// GetSecs returns the number of seconds.
 func (s *Service) GetSecs() int {
 	return s.secs
+}
+
+// SetSecs sets the seconds of the service to fire on.
+func (s *Service) SetSecs(secs int) {
+	s.secs = secs
 }
 
 // UniqStr combines the label and id in order to have a unique, human
 // readable label.
 func (s *Service) UniqStr() string {
-	return fmt.Sprintf("%s-%d", *s.Label, s.id)
+	var ret string
+
+	if s.Label != nil {
+		ret = fmt.Sprintf("%s-%d", *s.Label, s.id)
+	} else {
+		ret = fmt.Sprintf("%d", s.id)
+	}
+
+	return ret
 }
 
 // DataRepo sets where the data processed should be stored in
@@ -219,16 +253,20 @@ func (s *Service) maybeAlert(shouldAlert bool, result interface{}) {
 	}
 }
 
-// SetSecs sets the seconds of the service to fire on. This will not
-// take effect on the wheel, unless it's a repeatable service, and was
-// re-added on the next tick.
-func (s *Service) SetSecs(secs int) {
-	s.secs = secs
-}
-
 // GetOffset returns the offset time of the service
 func (s *Service) GetOffset() int {
 	return s.offset
+}
+
+// SetAbsExpiry sets the timestamp that the service is suposed to
+// expire on.
+func (s *Service) SetAbsExpiry(ts int64) {
+	s.absExpiry = ts
+}
+
+// GetAbsExpiry gets the timestamp
+func (s *Service) GetAbsExpiry() int64 {
+	return s.absExpiry
 }
 
 func (s *Service) String() string {
