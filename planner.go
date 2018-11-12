@@ -22,24 +22,24 @@ import (
 	"time"
 )
 
-// TODO: rename to ServicePriorityQueue or the likes
-//
-// ServiceQueue is a priority queue that contains services. A min
-// heap, where the soonest timestamp occupies the root.
-type Wheel struct {
+// Planner is a structure that manages events inserted with expiration
+// timestamps. The underlying data structures are magic, and you
+// shouldn't care about them, unless you're opening up the hatch and
+// stuff.
+type Planner struct {
 	services ServiceQueue
 	ticks    int
 }
 
-// WheelNew creates a new, empty, timing wheel.
-func WheelNew() *Wheel {
-	var tw Wheel
+// PlannerNew creates a new, empty, timing wheel.
+func PlannerNew() *Planner {
+	var tw Planner
 	tw.services = make(ServiceQueue, 0)
 	return &tw
 }
 
 // Tick moves the cursor of the timing wheel, by one second.
-func (s *Wheel) Tick() {
+func (s *Planner) Tick() {
 	for {
 		if s.services.Len() == 0 {
 			break
@@ -63,7 +63,8 @@ func (s *Wheel) Tick() {
 	s.ticks++
 }
 
-func (s *Wheel) Add(service *Service) {
+// Add adds an event to the planner
+func (s *Planner) Add(service *Service) {
 	var expiry int64
 
 	if service.IsImmediate() {
@@ -78,7 +79,7 @@ func (s *Wheel) Add(service *Service) {
 }
 
 // Run runs the wheel, with a 1s tick
-func (s *Wheel) Run() {
+func (s *Planner) Run() {
 	ticker := time.NewTicker(time.Second)
 	go func() {
 		for range ticker.C {

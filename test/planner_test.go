@@ -35,7 +35,7 @@ const (
 )
 
 func TestAdd(t *testing.T) {
-	wheel := cynic.WheelNew()
+	planner := cynic.PlannerNew()
 
 	// Test most edge cases
 	serviceSecs := cynic.ServiceJSONNew("www.google.com", 1)
@@ -60,7 +60,7 @@ func TestAdd(t *testing.T) {
 	}
 
 	for _, el := range services {
-		wheel.Add(&el)
+		planner.Add(&el)
 	}
 }
 
@@ -81,20 +81,20 @@ func TestTickAll(t *testing.T) {
 
 			assert(t, !isExpired)
 
-			wheel := cynic.WheelNew()
-			wheel.Add(&service)
+			planner := cynic.PlannerNew()
+			planner.Add(&service)
 
 			for i := 0; i < time; i++ {
-				wheel.Tick()
+				planner.Tick()
 				if isExpired {
 					log.Println("expired before its time")
 				}
 				assert(t, !isExpired)
 			}
 
-			wheel.Tick()
+			planner.Tick()
 			if !isExpired {
-				log.Println(wheel)
+				log.Println(planner)
 				log.Println(service)
 				log.Println(service.GetAbsExpiry())
 			}
@@ -157,12 +157,12 @@ func TestAddRepeatedService(t *testing.T) {
 		return false, 0
 	})
 
-	wheel := cynic.WheelNew()
-	wheel.Add(&service)
+	planner := cynic.PlannerNew()
+	planner.Add(&service)
 
 	n := 3
 	for i := 0; i < (time*n)+1; i++ {
-		wheel.Tick()
+		planner.Tick()
 	}
 
 	assert(t, count == n)
@@ -170,7 +170,7 @@ func TestAddRepeatedService(t *testing.T) {
 
 func TestAddTickThenAddAgain(t *testing.T) {
 	var s1, s2 int
-	wheel := cynic.WheelNew()
+	planner := cynic.PlannerNew()
 	service := cynic.ServiceJSONNew("www.google.com", 10)
 	service.AddHook(
 		func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
@@ -178,11 +178,11 @@ func TestAddTickThenAddAgain(t *testing.T) {
 			return false, 0
 		})
 
-	wheel.Add(&service)
+	planner.Add(&service)
 
-	wheel.Tick()
-	wheel.Tick()
-	wheel.Tick()
+	planner.Tick()
+	planner.Tick()
+	planner.Tick()
 
 	assert(t, s1 == 0 && s2 == 0)
 
@@ -193,16 +193,16 @@ func TestAddTickThenAddAgain(t *testing.T) {
 			return false, 0
 		})
 
-	wheel.Add(&nextService)
+	planner.Add(&nextService)
 
 	for i := 0; i < 8; i++ {
-		wheel.Tick()
+		planner.Tick()
 	}
 
 	assert(t, s1 == 1 && s2 == 0)
 
 	for i := 0; i < 4; i++ {
-		wheel.Tick()
+		planner.Tick()
 	}
 
 	assert(t, s1 == 1 && s2 == 1)
@@ -212,12 +212,12 @@ func TestServiceOffset(t *testing.T) {
 	secs := 3
 	offsetTime := 2
 	ran := false
-	wheel := cynic.WheelNew()
+	planner := cynic.PlannerNew()
 
 	s := cynic.ServiceNew(secs)
 	s.Offset(offsetTime)
 
-	wheel.Add(&s)
+	planner.Add(&s)
 
 	s.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
 		ran = true
@@ -226,12 +226,12 @@ func TestServiceOffset(t *testing.T) {
 
 	assert(t, !ran)
 
-	wheel.Tick()
-	wheel.Tick()
+	planner.Tick()
+	planner.Tick()
 	assert(t, !ran)
 
 	for i := 0; i < secs; i++ {
-		wheel.Tick()
+		planner.Tick()
 	}
 
 	assert(t, ran)
@@ -250,7 +250,7 @@ func TestServiceImmediate(t *testing.T) {
 		return false, 0
 	})
 
-	w := cynic.WheelNew()
+	w := cynic.PlannerNew()
 	w.Add(&s)
 
 	w.Tick()
@@ -276,7 +276,7 @@ func TestServiceImmediateWithRepeat(t *testing.T) {
 		return false, 0
 	})
 
-	w := cynic.WheelNew()
+	w := cynic.PlannerNew()
 	w.Add(&s)
 
 	w.Tick()
@@ -300,7 +300,7 @@ func TestAddHalfMinute(t *testing.T) {
 		return false, 0
 	})
 
-	w := cynic.WheelNew()
+	w := cynic.PlannerNew()
 
 	countTicks := 0
 	for {
@@ -325,7 +325,7 @@ func TestAddLastMinuteSecond(t *testing.T) {
 		return false, 0
 	})
 
-	w := cynic.WheelNew()
+	w := cynic.PlannerNew()
 
 	countTicks := 0
 	for {
@@ -352,7 +352,7 @@ func TestRepeatedTicks(t *testing.T) {
 		return false, 0
 	})
 
-	w := cynic.WheelNew()
+	w := cynic.PlannerNew()
 	w.Add(&ser)
 
 	upto := 30
@@ -379,7 +379,7 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 		return false, 0
 	})
 
-	w := cynic.WheelNew()
+	w := cynic.PlannerNew()
 	var totalTicks int
 	for {
 		totalTicks++
@@ -445,7 +445,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 				return false, 0
 			})
 
-			w := cynic.WheelNew()
+			w := cynic.PlannerNew()
 			w.Add(&ser)
 			w.Tick() // put cursor on top of just inserted timer
 
@@ -461,7 +461,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 				log.Println("expected ticks: ", expectedCount)
 				log.Println("actual ticks:   ", count)
 				log.Println("abs secs:       ", ser.GetAbsSecs())
-				log.Println("wheel: \n", w)
+				log.Println("planner: \n", w)
 			}
 			assert(t, count == expectedCount)
 		}
