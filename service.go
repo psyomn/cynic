@@ -78,6 +78,7 @@ type Service struct {
 
 	index    int
 	priority int
+	deleted  bool
 }
 
 var lastID uint64
@@ -105,6 +106,7 @@ func ServiceNew(secs int) Service {
 		alerter:   nil,
 
 		priority: priority,
+		deleted:  false,
 	}
 }
 
@@ -134,6 +136,7 @@ func ServiceJSONNew(rawurl string, secs int) Service {
 		absSecs:   0,
 		alerter:   nil,
 		priority:  priority,
+		deleted:   false,
 	}
 }
 
@@ -281,6 +284,16 @@ func (s *Service) String() string {
 		s.Label,
 		s.id,
 		s.repo)
+}
+
+// Delete marks service for deletion
+func (s *Service) Delete() {
+	s.deleted = true
+}
+
+// IsDeleted returns if service is marked for deletion
+func (s *Service) IsDeleted() bool {
+	return s.deleted
 }
 
 func jsonQuery(s *Service, t *StatusServer) {

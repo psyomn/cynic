@@ -22,19 +22,23 @@ import (
 	"time"
 )
 
+type serviceMap map[uint64]*Service
+
 // Planner is a structure that manages events inserted with expiration
 // timestamps. The underlying data structures are magic, and you
 // shouldn't care about them, unless you're opening up the hatch and
 // stuff.
 type Planner struct {
-	services ServiceQueue
-	ticks    int
+	services       ServiceQueue
+	ticks          int
+	uniqueServices serviceMap
 }
 
 // PlannerNew creates a new, empty, timing wheel.
 func PlannerNew() *Planner {
 	var tw Planner
 	tw.services = make(ServiceQueue, 0)
+	tw.uniqueServices = make(serviceMap)
 	return &tw
 }
 
@@ -49,6 +53,11 @@ func (s *Planner) Tick() {
 
 		if s.ticks >= int(rootTimestamp) {
 			service := heap.Pop(&s.services).(*Service)
+
+			if service.IsDeleted() {
+				continue
+			}
+
 			service.Execute()
 
 			if service.IsRepeating() {
@@ -74,8 +83,9 @@ func (s *Planner) Add(service *Service) {
 		expiry = int64(service.GetSecs() + s.ticks)
 	}
 
+	s.uniqueServices[service.ID()] = service
 	service.SetAbsExpiry(expiry)
-	s.services.Push(service)
+	heap.Push(&s.services, service)
 }
 
 // Run runs the wheel, with a 1s tick
@@ -87,4 +97,18 @@ func (s *Planner) Run() {
 		}
 	}()
 	defer ticker.Stop()
+}
+
+// Delete marks a Service to be deleted. Returns true if service
+// found and marked for deletion, false if not.
+func (s *Planner) Delete(service *Service) bool {
+	id := service.ID()
+
+	if value, ok := s.uniqueServices[id]; ok {
+		value.Delete()
+		delete(s.uniqueServices, id)
+		return true
+	}
+
+	return false
 }
