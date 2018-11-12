@@ -59,6 +59,7 @@ type HookSignature = func(*StatusServer) (bool, interface{})
 //   - hooks (that can act as contracts)
 // - A service may be bound to a data repository/cache
 type Service struct {
+	id        uint64
 	url       *url.URL
 	secs      int
 	hooks     []HookSignature
@@ -66,12 +67,8 @@ type Service struct {
 	offset    int
 	repeat    bool
 	Label     *string
-	id        uint64
 
-	repo *StatusServer
-
-	absSecs int // TODO: eventually remove
-
+	repo    *StatusServer
 	alerter *Alerter
 
 	absExpiry int64
@@ -102,11 +99,9 @@ func ServiceNew(secs int) Service {
 		offset:    0,
 		repeat:    false,
 		id:        id,
-		absSecs:   0,
 		alerter:   nil,
-
-		priority: priority,
-		deleted:  false,
+		priority:  priority,
+		deleted:   false,
 	}
 }
 
@@ -133,7 +128,6 @@ func ServiceJSONNew(rawurl string, secs int) Service {
 		offset:    0,
 		repeat:    false,
 		id:        lastID,
-		absSecs:   0,
 		alerter:   nil,
 		priority:  priority,
 		deleted:   false,
@@ -145,16 +139,6 @@ func ServiceJSONNew(rawurl string, secs int) Service {
 func (s *Service) Stop() {
 	log.Print("stopping service: ", s.url.String())
 	log.Fatal("do not run me no more")
-}
-
-// AbsSecs sets the absolute seconds of last timer addition
-func (s *Service) AbsSecs(secs int) {
-	s.absSecs = secs
-}
-
-// GetAbsSecs returns the absolute seconds of last timer addition
-func (s *Service) GetAbsSecs() int {
-	return s.absSecs
 }
 
 // AddHook appends a hook to the service
