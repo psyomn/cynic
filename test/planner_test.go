@@ -547,3 +547,46 @@ func TestPlannerDelete(t *testing.T) {
 	assert(t, expire1 == false)
 	assert(t, expire2 == true)
 }
+
+func TestSecondsApart(t *testing.T) {
+	s1 := cynic.ServiceNew(1)
+	s2 := cynic.ServiceNew(2)
+	s3 := cynic.ServiceNew(3)
+	pl := cynic.PlannerNew()
+
+	run := [...]bool{false, false, false}
+
+	s1.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+		run[0] = true
+		return false, 0
+	})
+	s2.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+		run[1] = true
+		return false, 0
+	})
+	s3.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+		run[2] = true
+		return false, 0
+	})
+
+	s1.Repeat(true)
+	s2.Repeat(true)
+	s3.Repeat(true)
+
+	pl.Add(&s1)
+	pl.Add(&s2)
+	pl.Add(&s3)
+
+	pl.Tick()
+
+	pl.Tick()
+	assert(t, run[0] && !run[1] && !run[2])
+	run = [...]bool{false, false, false}
+
+	pl.Tick()
+	assert(t, run[0] && run[1] && !run[2])
+	run = [...]bool{false, false, false}
+
+	pl.Tick()
+	assert(t, run[0] && !run[1] && run[2])
+}
