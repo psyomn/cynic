@@ -134,13 +134,6 @@ func ServiceJSONNew(rawurl string, secs int) Service {
 	}
 }
 
-// Stop service will stop the ticker, and gracefully exit it.
-// TODO DEPRACATED
-func (s *Service) Stop() {
-	log.Print("stopping service: ", s.url.String())
-	log.Fatal("do not run me no more")
-}
-
 // AddHook appends a hook to the service
 func (s *Service) AddHook(fn HookSignature) {
 	s.hooks = append(s.hooks, fn)
@@ -249,6 +242,7 @@ func (s *Service) GetOffset() int {
 // expire on.
 func (s *Service) SetAbsExpiry(ts int64) {
 	s.absExpiry = ts
+	s.priority = int(ts)
 }
 
 // GetAbsExpiry gets the timestamp
@@ -316,5 +310,5 @@ func jsonQuery(s *Service, t *StatusServer) {
 	// for know json service endpoints. If we have a custom hook,
 	// the hook must be the one that decides what goes in the
 	// status cache.
-	t.Update(address, json) // TODO: better use service.UniqStr() here
+	t.Update(s.UniqStr(), json)
 }
