@@ -23,20 +23,20 @@ import (
 )
 
 const (
-	// StopService is the signal to stop the running querying service
-	StopService = iota
+	// StopEvent is the signal to stop the running querying event
+	StopEvent = iota
 
-	// AddService adds a service to a running cynic instance
-	AddService
+	// AddEvent adds a event to a running cynic instance
+	AddEvent
 
-	// DeleteService removes a service from a running cynic instance
-	DeleteService
+	// DeleteEvent removes a event from a running cynic instance
+	DeleteEvent
 )
 
 // Session is the configuration a cynic instance requires to start
 // running and working
 type Session struct {
-	Services      []Service
+	Events        []Event
 	StatusServers []StatusServer
 	Alerter       *Alerter
 }
@@ -48,9 +48,9 @@ func Start(session Session) {
 
 	planner := PlannerNew()
 
-	for i := 0; i < len(session.Services); i++ {
-		planner.Add(&session.Services[i])
-		session.Services[i].alerter = session.Alerter
+	for i := 0; i < len(session.Events); i++ {
+		planner.Add(&session.Events[i])
+		session.Events[i].alerter = session.Alerter
 	}
 
 	ticker := time.NewTicker(time.Second)

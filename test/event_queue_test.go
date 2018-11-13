@@ -24,41 +24,41 @@ import (
 	"github.com/psyomn/cynic"
 )
 
-func makeServiceQueue() cynic.ServiceQueue {
-	services := make(cynic.ServiceQueue, 0)
-	heap.Init(&services)
-	return services
+func makeEventQueue() cynic.EventQueue {
+	events := make(cynic.EventQueue, 0)
+	heap.Init(&events)
+	return events
 }
 
-func TestServiceQueueTimestamp(t *testing.T) {
-	services := makeServiceQueue()
+func TestEventQueueTimestamp(t *testing.T) {
+	events := makeEventQueue()
 
-	s1 := cynic.ServiceNew(10)
-	s2 := cynic.ServiceNew(2)
-	s3 := cynic.ServiceNew(15)
+	s1 := cynic.EventNew(10)
+	s2 := cynic.EventNew(2)
+	s3 := cynic.EventNew(15)
 
-	ss := [...]cynic.Service{s1, s2, s3}
+	ss := [...]cynic.Event{s1, s2, s3}
 
 	for i := 0; i < len(ss); i++ {
-		heap.Push(&services, &ss[i])
+		heap.Push(&events, &ss[i])
 	}
 
-	heap.Init(&services)
+	heap.Init(&events)
 
 	{
 		expectedID := s2.ID()
-		actualID, ok := services.PeekID()
+		actualID, ok := events.PeekID()
 
 		assert(t, ok)
 		assert(t, expectedID == actualID)
 	}
 
 	{
-		s4 := cynic.ServiceNew(1)
+		s4 := cynic.EventNew(1)
 		expectedID := s4.ID()
-		heap.Push(&services, &s4)
+		heap.Push(&events, &s4)
 
-		actualID, ok := services.PeekID()
+		actualID, ok := events.PeekID()
 
 		assert(t, ok)
 		assert(t, expectedID == actualID)
@@ -67,25 +67,25 @@ func TestServiceQueueTimestamp(t *testing.T) {
 }
 
 func TestPeekEmpty(t *testing.T) {
-	services := makeServiceQueue()
-	_, ok := services.PeekID()
+	events := makeEventQueue()
+	_, ok := events.PeekID()
 	assert(t, !ok)
 }
 
 func BenchmarkAdditionsPerSecond(b *testing.B) {
-	services := make([]*cynic.Service, 0)
+	events := make([]*cynic.Event, 0)
 
 	numNodes := 5000
 	for i := 0; i < numNodes; i++ {
-		ser := cynic.ServiceNew(i + 1)
-		services = append(services, &ser)
+		ser := cynic.EventNew(i + 1)
+		events = append(events, &ser)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		serviceq := makeServiceQueue()
+		eventq := makeEventQueue()
 		for j := 0; j < numNodes; j++ {
-			heap.Push(&serviceq, services[j])
+			heap.Push(&eventq, events[j])
 		}
 	}
 }

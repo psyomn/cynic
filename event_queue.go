@@ -17,33 +17,33 @@ limitations under the License.
 */
 package cynic
 
-// ServiceQueue is a priority queue that sorts events that are to
+// EventQueue is a priority queue that sorts events that are to
 // happen via their absolute expiry
-type ServiceQueue []*Service
+type EventQueue []*Event
 
-func (pq ServiceQueue) Len() int { return len(pq) }
+func (pq EventQueue) Len() int { return len(pq) }
 
-func (pq ServiceQueue) Less(i, j int) bool {
+func (pq EventQueue) Less(i, j int) bool {
 	// Want lowest value here (smaller timestamp = sooner)
 	return pq[i].priority < pq[j].priority
 }
 
-func (pq ServiceQueue) Swap(i, j int) {
+func (pq EventQueue) Swap(i, j int) {
 	pq[i], pq[j] = pq[j], pq[i]
 	pq[i].index = i
 	pq[j].index = j
 }
 
-// Push inserts an service/event into the priority queue
-func (pq *ServiceQueue) Push(x interface{}) {
+// Push inserts an event into the priority queue
+func (pq *EventQueue) Push(x interface{}) {
 	n := len(*pq)
-	item := x.(*Service)
+	item := x.(*Event)
 	item.index = n
 	*pq = append(*pq, item)
 }
 
 // Pop retrieves the soonest event
-func (pq *ServiceQueue) Pop() interface{} {
+func (pq *EventQueue) Pop() interface{} {
 	old := *pq
 	n := len(old)
 	item := old[n-1]
@@ -53,7 +53,7 @@ func (pq *ServiceQueue) Pop() interface{} {
 }
 
 // PeekTimestamp gives the timestamp at the root of the heap
-func (pq *ServiceQueue) PeekTimestamp() (int64, bool) {
+func (pq *EventQueue) PeekTimestamp() (int64, bool) {
 	if len(*pq) == 0 {
 		return 0, false
 	}
@@ -63,8 +63,8 @@ func (pq *ServiceQueue) PeekTimestamp() (int64, bool) {
 	return item.absExpiry, true
 }
 
-// PeekID returns the id of the service at root
-func (pq *ServiceQueue) PeekID() (uint64, bool) {
+// PeekID returns the id of the event at root
+func (pq *EventQueue) PeekID() (uint64, bool) {
 	if len(*pq) == 0 {
 		return 0, false
 	}

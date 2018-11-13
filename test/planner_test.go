@@ -38,28 +38,28 @@ func TestAdd(t *testing.T) {
 	planner := cynic.PlannerNew()
 
 	// Test most edge cases
-	serviceSecs := cynic.ServiceJSONNew("www.google.com", 1)
-	serviceMaxSecs := cynic.ServiceJSONNew("www.google.com", 59)
+	eventSecs := cynic.EventJSONNew("www.google.com", 1)
+	eventMaxSecs := cynic.EventJSONNew("www.google.com", 59)
 
-	serviceMinute := cynic.ServiceJSONNew("www.google.com", 60)
-	serviceMaxMinute := cynic.ServiceJSONNew("www.google.com", 60*60-1)
+	eventMinute := cynic.EventJSONNew("www.google.com", 60)
+	eventMaxMinute := cynic.EventJSONNew("www.google.com", 60*60-1)
 
-	serviceHour := cynic.ServiceJSONNew("www.google.com", 60*60)
-	serviceMaxHour := cynic.ServiceJSONNew("www.google.com", 23*60*60+60*59+59) // 23:59:59
+	eventHour := cynic.EventJSONNew("www.google.com", 60*60)
+	eventMaxHour := cynic.EventJSONNew("www.google.com", 23*60*60+60*59+59) // 23:59:59
 
-	service := cynic.ServiceJSONNew("www.google.com", 3*60*60+33*60+33)
+	event := cynic.EventJSONNew("www.google.com", 3*60*60+33*60+33)
 
-	services := [...]cynic.Service{
-		serviceSecs,
-		serviceMaxSecs,
-		serviceMinute,
-		serviceMaxMinute,
-		serviceHour,
-		serviceMaxHour,
-		service,
+	events := [...]cynic.Event{
+		eventSecs,
+		eventMaxSecs,
+		eventMinute,
+		eventMaxMinute,
+		eventHour,
+		eventMaxHour,
+		event,
 	}
 
-	for _, el := range services {
+	for _, el := range events {
 		planner.Add(&el)
 	}
 }
@@ -73,8 +73,8 @@ func TestTickAll(t *testing.T) {
 			isExpired := false
 
 			time := givenTime
-			service := cynic.ServiceNew(time)
-			service.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+			event := cynic.EventNew(time)
+			event.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
 				isExpired = true
 				return false, 0
 			})
@@ -82,7 +82,7 @@ func TestTickAll(t *testing.T) {
 			assert(t, !isExpired)
 
 			planner := cynic.PlannerNew()
-			planner.Add(&service)
+			planner.Add(&event)
 
 			for i := 0; i < time; i++ {
 				planner.Tick()
@@ -95,8 +95,8 @@ func TestTickAll(t *testing.T) {
 			planner.Tick()
 			if !isExpired {
 				log.Println(planner)
-				log.Println(service)
-				log.Println(service.GetAbsExpiry())
+				log.Println(event)
+				log.Println(event.GetAbsExpiry())
 			}
 
 			assert(t, isExpired)
@@ -145,20 +145,20 @@ func TestTickAll(t *testing.T) {
 
 }
 
-func TestAddRepeatedService(t *testing.T) {
+func TestAddRepeatedEvent(t *testing.T) {
 	var count int
 	var time int
 	time = 10
 
-	service := cynic.ServiceJSONNew("www.google.com", time)
-	service.Repeat(true)
-	service.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+	event := cynic.EventJSONNew("www.google.com", time)
+	event.Repeat(true)
+	event.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
 		count++
 		return false, 0
 	})
 
 	planner := cynic.PlannerNew()
-	planner.Add(&service)
+	planner.Add(&event)
 
 	n := 3
 	for i := 0; i < (time*n)+1; i++ {
@@ -171,14 +171,14 @@ func TestAddRepeatedService(t *testing.T) {
 func TestAddTickThenAddAgain(t *testing.T) {
 	var s1, s2 int
 	planner := cynic.PlannerNew()
-	service := cynic.ServiceJSONNew("www.google.com", 10)
-	service.AddHook(
+	event := cynic.EventJSONNew("www.google.com", 10)
+	event.AddHook(
 		func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
 			s1 = 1
 			return false, 0
 		})
 
-	planner.Add(&service)
+	planner.Add(&event)
 
 	planner.Tick()
 	planner.Tick()
@@ -186,14 +186,14 @@ func TestAddTickThenAddAgain(t *testing.T) {
 
 	assert(t, s1 == 0 && s2 == 0)
 
-	nextService := cynic.ServiceJSONNew("www.HAHAHA.com", 10)
-	nextService.AddHook(
+	nextEvent := cynic.EventJSONNew("www.HAHAHA.com", 10)
+	nextEvent.AddHook(
 		func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
 			s2 = 1
 			return false, 0
 		})
 
-	planner.Add(&nextService)
+	planner.Add(&nextEvent)
 
 	for i := 0; i < 8; i++ {
 		planner.Tick()
@@ -208,13 +208,13 @@ func TestAddTickThenAddAgain(t *testing.T) {
 	assert(t, s1 == 1 && s2 == 1)
 }
 
-func TestServiceOffset(t *testing.T) {
+func TestEventOffset(t *testing.T) {
 	secs := 3
 	offsetTime := 2
 	ran := false
 	planner := cynic.PlannerNew()
 
-	s := cynic.ServiceNew(secs)
+	s := cynic.EventNew(secs)
 	s.Offset(offsetTime)
 
 	planner.Add(&s)
@@ -237,13 +237,13 @@ func TestServiceOffset(t *testing.T) {
 	assert(t, ran)
 }
 
-func TestServiceImmediate(t *testing.T) {
+func TestEventImmediate(t *testing.T) {
 	// TODO: Test with immediate and a long long time afterwards, eg:
 	//   immediate + 5 hours in the future
 	//   immediate + 3 days in the future
 	var count int
 	time := 12
-	s := cynic.ServiceNew(time)
+	s := cynic.EventNew(time)
 	s.Immediate(true)
 	s.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		count++
@@ -264,11 +264,11 @@ func TestServiceImmediate(t *testing.T) {
 	assert(t, count == 1)
 }
 
-func TestServiceImmediateWithRepeat(t *testing.T) {
+func TestEventImmediateWithRepeat(t *testing.T) {
 	var count int
 	time := 12
 
-	s := cynic.ServiceNew(time)
+	s := cynic.EventNew(time)
 	s.Immediate(true)
 	s.Repeat(true)
 	s.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
@@ -294,7 +294,7 @@ func TestServiceImmediateWithRepeat(t *testing.T) {
 func TestAddHalfMinute(t *testing.T) {
 	var count int
 
-	ser := cynic.ServiceNew(1)
+	ser := cynic.EventNew(1)
 	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		count++
 		return false, 0
@@ -319,7 +319,7 @@ func TestAddHalfMinute(t *testing.T) {
 func TestAddLastMinuteSecond(t *testing.T) {
 	var count int
 
-	ser := cynic.ServiceNew(1)
+	ser := cynic.EventNew(1)
 	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		count++
 		return false, 0
@@ -345,7 +345,7 @@ func TestAddLastMinuteSecond(t *testing.T) {
 
 func TestRepeatedTicks(t *testing.T) {
 	var count int
-	ser := cynic.ServiceNew(1)
+	ser := cynic.EventNew(1)
 	ser.Repeat(true)
 	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		count++
@@ -357,7 +357,7 @@ func TestRepeatedTicks(t *testing.T) {
 
 	upto := 30
 
-	// set cursor on top of first service
+	// set cursor on top of first event
 	w.Tick()
 
 	for i := 0; i < upto; i++ {
@@ -369,7 +369,7 @@ func TestRepeatedTicks(t *testing.T) {
 
 func TestSimpleRepeatedRotation(t *testing.T) {
 	var count int
-	ser := cynic.ServiceNew(1)
+	ser := cynic.EventNew(1)
 	label := "simple-repeated-rotation-x3"
 
 	ser.Label = &label
@@ -437,7 +437,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 	setup := func(interval, timerange int) func(t *testing.T) {
 		return func(t *testing.T) {
 			var count int
-			ser := cynic.ServiceNew(interval)
+			ser := cynic.EventNew(interval)
 			ser.Repeat(true)
 			ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 				count++
@@ -519,8 +519,8 @@ func TestPlannerDelete(t *testing.T) {
 	var expire1, expire2 bool
 
 	planner := cynic.PlannerNew()
-	ser := cynic.ServiceNew(1)
-	ser2 := cynic.ServiceNew(1)
+	ser := cynic.EventNew(1)
+	ser2 := cynic.EventNew(1)
 
 	ser.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
 		expire1 = true
@@ -542,16 +542,16 @@ func TestPlannerDelete(t *testing.T) {
 	planner.Tick()
 	planner.Tick()
 
-	// Make sure that the deleted service does not ever execute,
+	// Make sure that the deleted event does not ever execute,
 	// since marked for deletion before tick
 	assert(t, expire1 == false)
 	assert(t, expire2 == true)
 }
 
 func TestSecondsApart(t *testing.T) {
-	s1 := cynic.ServiceNew(1)
-	s2 := cynic.ServiceNew(2)
-	s3 := cynic.ServiceNew(3)
+	s1 := cynic.EventNew(1)
+	s2 := cynic.EventNew(2)
+	s3 := cynic.EventNew(3)
 	pl := cynic.PlannerNew()
 
 	run := [...]bool{false, false, false}

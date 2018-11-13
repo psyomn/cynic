@@ -28,20 +28,20 @@ import (
 	"github.com/psyomn/cynic"
 )
 
-func TestServiceIdIncreaseMonotonically(t *testing.T) {
-	s1 := cynic.ServiceJSONNew("www.google.com", 1)
-	s2 := cynic.ServiceJSONNew("www.hahaha.com", 2)
-	s3 := cynic.ServiceJSONNew("www.derp.com", 3)
+func TestEventIdIncreaseMonotonically(t *testing.T) {
+	s1 := cynic.EventJSONNew("www.google.com", 1)
+	s2 := cynic.EventJSONNew("www.hahaha.com", 2)
+	s3 := cynic.EventJSONNew("www.derp.com", 3)
 
 	assert(t, s1.ID() != s2.ID() &&
 		s1.ID() != s3.ID() &&
 		s2.ID() != s3.ID())
 }
 
-func TestAtomicServiceIds(t *testing.T) {
+func TestAtomicEventIds(t *testing.T) {
 	var wg sync.WaitGroup
 	routines := 30
-	serviceCount := 20
+	eventCount := 20
 
 	var ids sync.Map
 
@@ -50,14 +50,14 @@ func TestAtomicServiceIds(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			for i := 0; i < serviceCount; i++ {
-				service := cynic.ServiceNew(1)
-				serviceID := service.ID()
+			for i := 0; i < eventCount; i++ {
+				event := cynic.EventNew(1)
+				eventID := event.ID()
 
-				if actual, ok := ids.Load(serviceID); ok {
-					ids.Store(serviceID, actual.(int)+1)
+				if actual, ok := ids.Load(eventID); ok {
+					ids.Store(eventID, actual.(int)+1)
 				} else {
-					ids.Store(serviceID, 1)
+					ids.Store(eventID, 1)
 				}
 			}
 		}()
@@ -70,7 +70,7 @@ func TestAtomicServiceIds(t *testing.T) {
 	})
 }
 
-func TestServiceWithQueryAndRepo(t *testing.T) {
+func TestEventWithQueryAndRepo(t *testing.T) {
 	ran := false
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "{}")
@@ -78,8 +78,8 @@ func TestServiceWithQueryAndRepo(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ser := cynic.ServiceJSONNew(ts.URL, 1)
-	repo := cynic.StatusServerNew("0", "/status/testservicewithqueryandrepo")
+	ser := cynic.EventJSONNew(ts.URL, 1)
+	repo := cynic.StatusServerNew("0", "/status/testeventwithqueryandrepo")
 	ser.DataRepo(&repo)
 
 	ser.Execute()
@@ -87,7 +87,7 @@ func TestServiceWithQueryAndRepo(t *testing.T) {
 	assert(t, ran)
 }
 
-func TestServiceWithQueryNoRepo(t *testing.T) {
+func TestEventWithQueryNoRepo(t *testing.T) {
 	ran := false
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "{}")
@@ -95,8 +95,8 @@ func TestServiceWithQueryNoRepo(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ser := cynic.ServiceJSONNew(ts.URL, 1)
-	repo := cynic.StatusServerNew("0", "/status/testservicewithquerynorepo")
+	ser := cynic.EventJSONNew(ts.URL, 1)
+	repo := cynic.StatusServerNew("0", "/status/testeventwithquerynorepo")
 	ser.DataRepo(&repo)
 
 	ser.Execute()
@@ -104,9 +104,9 @@ func TestServiceWithQueryNoRepo(t *testing.T) {
 	assert(t, ran)
 }
 
-func TestServiceExecution(t *testing.T) {
+func TestEventExecution(t *testing.T) {
 	ran := false
-	ser := cynic.ServiceNew(1)
+	ser := cynic.EventNew(1)
 	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		ran = true
 		return false, 0

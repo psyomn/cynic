@@ -21,12 +21,12 @@ type distributionParams struct {
 	maxTime int
 }
 
-// ServiceBuilder is a helper to set properties to a lot of
-// services. For example, if you have 10 services you want to run
+// EventBuilder is a helper to set properties to a lot of
+// events. For example, if you have 10 events you want to run
 // within 100 seconds, you can use this builder in oder to disperse
 // everything over 10 seconds.
-type ServiceBuilder struct {
-	services []Service
+type EventBuilder struct {
+	events []Event
 
 	evenDistribute bool
 	allRepeatable  bool
@@ -34,12 +34,12 @@ type ServiceBuilder struct {
 	distribution *distributionParams
 }
 
-// ServiceBuilderNew creates a new services builder. Simple
+// EventBuilderNew creates a new events builder. Simple
 // configurations. If you want something more complex, you should do
 // it on your own.
-func ServiceBuilderNew(services []Service) ServiceBuilder {
-	return ServiceBuilder{
-		services:       services,
+func EventBuilderNew(events []Event) EventBuilder {
+	return EventBuilder{
+		events:         events,
 		evenDistribute: false,
 		allRepeatable:  false,
 	}
@@ -48,53 +48,53 @@ func ServiceBuilderNew(services []Service) ServiceBuilder {
 // Build takes all the things you gave the builder, puts them
 // together, and gives you a session object to do whatever you
 // will with it.
-func (s *ServiceBuilder) Build() (Session, bool) {
+func (s *EventBuilder) Build() (Session, bool) {
 	ret := s.makeRepeatable() && s.makeDistributeEvents()
 
 	sess := Session{
-		Services: s.services,
-		Alerter:  nil,
+		Events:  s.events,
+		Alerter: nil,
 	}
 
 	return sess, ret
 }
 
 // DistributeEvents over a max time interval
-func (s *ServiceBuilder) DistributeEvents(maxTime int) {
+func (s *EventBuilder) DistributeEvents(maxTime int) {
 	s.distribution = &distributionParams{
 		maxTime: maxTime,
 	}
 }
 
-func (s *ServiceBuilder) makeDistributeEvents() bool {
+func (s *EventBuilder) makeDistributeEvents() bool {
 	if s.distribution == nil ||
 		s.distribution.maxTime <= 0 ||
 
-		// min granularity is a sec, so 11 services in 10 secs
+		// min granularity is a sec, so 11 events in 10 secs
 		// do not guarantee some sort of distribution
-		len(s.services) > s.distribution.maxTime {
+		len(s.events) > s.distribution.maxTime {
 
 		return false
 	}
 
-	serviceCount := len(s.services)
-	interval := s.distribution.maxTime / serviceCount
+	eventCount := len(s.events)
+	interval := s.distribution.maxTime / eventCount
 
-	for i := 0; i < serviceCount; i++ {
-		s.services[i].SetSecs(interval)
-		s.services[i].Offset(interval * i)
+	for i := 0; i < eventCount; i++ {
+		s.events[i].SetSecs(interval)
+		s.events[i].Offset(interval * i)
 	}
 
 	return true
 }
 
-// Repeatable will mark all services as repeatable
-func (s *ServiceBuilder) Repeatable() {
+// Repeatable will mark all events as repeatable
+func (s *EventBuilder) Repeatable() {
 	s.allRepeatable = true
 }
 
-func (s *ServiceBuilder) makeRepeatable() bool {
-	for _, el := range s.services {
+func (s *EventBuilder) makeRepeatable() bool {
+	for _, el := range s.events {
 		el.Repeat(true)
 	}
 	return true

@@ -25,23 +25,23 @@ import (
 )
 
 func TestSimpleBuilder(t *testing.T) {
-	setup := func(serviceCount, maxTime int) func(t *testing.T) {
+	setup := func(eventCount, maxTime int) func(t *testing.T) {
 		return func(t *testing.T) {
-			var services []cynic.Service
+			var events []cynic.Event
 
-			for i := 0; i < serviceCount; i++ {
-				service := cynic.ServiceNew(1)
-				services = append(services, service)
+			for i := 0; i < eventCount; i++ {
+				event := cynic.EventNew(1)
+				events = append(events, event)
 			}
 
-			builder := cynic.ServiceBuilderNew(services)
+			builder := cynic.EventBuilderNew(events)
 			builder.DistributeEvents(maxTime)
 
 			session, ok := builder.Build()
 			assert(t, ok)
 
-			for _, el := range session.Services {
-				assert(t, el.GetSecs() == (maxTime/serviceCount))
+			for _, el := range session.Events {
+				assert(t, el.GetSecs() == (maxTime/eventCount))
 			}
 		}
 	}
@@ -53,9 +53,9 @@ func TestSimpleBuilder(t *testing.T) {
 	}
 
 	testCases := [...]testCase{
-		testCase{"maxtime 5, service count 5", 5, 5},
-		testCase{"maxtime 1000 service count 100", 100, 1000},
-		testCase{"maxtime 999 service count 100", 100, 999},
+		testCase{"maxtime 5, event count 5", 5, 5},
+		testCase{"maxtime 1000 event count 100", 100, 1000},
+		testCase{"maxtime 999 event count 100", 100, 999},
 	}
 
 	for _, c := range testCases {
@@ -64,10 +64,10 @@ func TestSimpleBuilder(t *testing.T) {
 }
 
 func TestSimpleErrorCases(t *testing.T) {
-	setup := func(serviceCount, maxTime int) func(t *testing.T) {
+	setup := func(eventCount, maxTime int) func(t *testing.T) {
 		return func(t *testing.T) {
-			var services []cynic.Service
-			builder := cynic.ServiceBuilderNew(services)
+			var events []cynic.Event
+			builder := cynic.EventBuilderNew(events)
 			_, ok := builder.Build()
 			assert(t, !ok)
 		}
@@ -80,9 +80,9 @@ func TestSimpleErrorCases(t *testing.T) {
 	}
 
 	tests := [...]testCase{
-		testCase{"maxtime -10 service count 1", 1, -10},
-		testCase{"maxtime 0 service count 10", 0, 10},
-		testCase{"maxtime 10 service count 11", 10, 11},
+		testCase{"maxtime -10 event count 1", 1, -10},
+		testCase{"maxtime 0 event count 10", 0, 10},
+		testCase{"maxtime 10 event count 11", 10, 11},
 	}
 
 	for _, c := range tests {
