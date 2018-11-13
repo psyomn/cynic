@@ -23,6 +23,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"sync/atomic"
 	"time"
 )
@@ -225,11 +226,16 @@ func (s *Event) maybeAlert(shouldAlert bool, result interface{}) {
 		return
 	}
 
+	hostVal, err := os.Hostname()
+	if err != nil {
+		hostVal = "badhost"
+	}
+
 	s.alerter.Ch <- AlertMessage{
 		Response:      result,
-		Endpoint:      "TODO",
-		Now:           "TODO",
-		CynicHostname: "TODO",
+		Endpoint:      s.url.String(),
+		Now:           time.Now().Format(time.RFC3339),
+		CynicHostname: hostVal,
 	}
 }
 
