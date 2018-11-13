@@ -96,7 +96,7 @@ type result struct {
 }
 
 // You need to respect this interface so that you can bind hooks to
-// your services. You can return a struct with json hints as shown
+// your events. You can return a struct with json hints as shown
 // bellow, and cynic will add that to the /status endpoint.
 func exampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 	fmt.Println("Firing the example hook yay!")
@@ -146,42 +146,42 @@ func main() {
 
 	log.Printf("status-port: %s\n", statusPort)
 
-	var services []cynic.Service
+	var events []cynic.Event
 
-	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/one", 1))
-	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/two", 2))
-	services = append(services, cynic.ServiceJSONNew("http://localhost:9001/flappyerror", 3))
+	events = append(events, cynic.EventJSONNew("http://localhost:9001/one", 1))
+	events = append(events, cynic.EventJSONNew("http://localhost:9001/two", 2))
+	events = append(events, cynic.EventJSONNew("http://localhost:9001/flappyerror", 3))
 
-	services[0].AddHook(exampleHook)
-	services[0].AddHook(anotherExampleHook)
-	services[0].AddHook(finalHook)
-	services[0].Offset(10) // delay 10 seconds before starting
-	services[0].Repeat(true)
+	events[0].AddHook(exampleHook)
+	events[0].AddHook(anotherExampleHook)
+	events[0].AddHook(finalHook)
+	events[0].Offset(10) // delay 10 seconds before starting
+	events[0].Repeat(true)
 
-	services[1].AddHook(exampleHook)
-	services[1].Repeat(true)
+	events[1].AddHook(exampleHook)
+	events[1].Repeat(true)
 
-	services[2].AddHook(exampleHook)
-	services[2].AddHook(anotherExampleHook)
-	services[2].AddHook(finalHook)
-	services[2].Repeat(true)
+	events[2].AddHook(exampleHook)
+	events[2].AddHook(anotherExampleHook)
+	events[2].AddHook(finalHook)
+	events[2].Repeat(true)
 
-	for i := 0; i < len(services); i++ {
-		fmt.Println("entry: ", services[i])
-		fmt.Printf("address: %p\n", &services[i])
+	for i := 0; i < len(events); i++ {
+		fmt.Println("entry: ", events[i])
+		fmt.Printf("address: %p\n", &events[i])
 	}
 
 	var statusServers []cynic.StatusServer
 	statusServer := cynic.StatusServerNew(statusPort, cynic.DefaultStatusEndpoint)
 	statusServers = append(statusServers, statusServer)
 
-	for i := 0; i < len(services); i++ {
-		services[i].DataRepo(&statusServer)
+	for i := 0; i < len(events); i++ {
+		events[i].DataRepo(&statusServer)
 	}
 
 	alerter := cynic.AlerterNew(20, exampleAlerter)
 	session := cynic.Session{
-		Services:      services,
+		Events:        events,
 		Alerter:       &alerter,
 		StatusServers: statusServers,
 	}

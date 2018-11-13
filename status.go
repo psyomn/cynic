@@ -29,7 +29,7 @@ import (
 )
 
 // StatusServer is a server that will serve information about all the
-// services cynic will be observing
+// events cynic will be observing
 type StatusServer struct {
 	contractResults *sync.Map
 	listener        net.Listener

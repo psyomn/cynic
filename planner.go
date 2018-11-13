@@ -22,46 +22,46 @@ import (
 	"time"
 )
 
-type serviceMap map[uint64]*Service
+type eventMap map[uint64]*Event
 
 // Planner is a structure that manages events inserted with expiration
 // timestamps. The underlying data structures are magic, and you
 // shouldn't care about them, unless you're opening up the hatch and
 // stuff.
 type Planner struct {
-	services       ServiceQueue
-	ticks          int
-	uniqueServices serviceMap
+	events       EventQueue
+	ticks        int
+	uniqueEvents eventMap
 }
 
 // PlannerNew creates a new, empty, timing wheel.
 func PlannerNew() *Planner {
 	var tw Planner
-	tw.services = make(ServiceQueue, 0)
-	tw.uniqueServices = make(serviceMap)
+	tw.events = make(EventQueue, 0)
+	tw.uniqueEvents = make(eventMap)
 	return &tw
 }
 
 // Tick moves the cursor of the timing wheel, by one second.
 func (s *Planner) Tick() {
 	for {
-		if s.services.Len() == 0 {
+		if s.events.Len() == 0 {
 			break
 		}
 
-		rootTimestamp, _ := s.services.PeekTimestamp()
+		rootTimestamp, _ := s.events.PeekTimestamp()
 
 		if s.ticks >= int(rootTimestamp) {
-			service := heap.Pop(&s.services).(*Service)
+			event := heap.Pop(&s.events).(*Event)
 
-			if service.IsDeleted() {
+			if event.IsDeleted() {
 				continue
 			}
 
-			service.Execute()
+			event.Execute()
 
-			if service.IsRepeating() {
-				s.Add(service)
+			if event.IsRepeating() {
+				s.Add(event)
 			}
 
 		} else {
@@ -73,19 +73,19 @@ func (s *Planner) Tick() {
 }
 
 // Add adds an event to the planner
-func (s *Planner) Add(service *Service) {
+func (s *Planner) Add(event *Event) {
 	var expiry int64
 
-	if service.IsImmediate() {
+	if event.IsImmediate() {
 		expiry = 1
-		service.Immediate(false)
+		event.Immediate(false)
 	} else {
-		expiry = int64(service.GetSecs() + s.ticks)
+		expiry = int64(event.GetSecs() + s.ticks)
 	}
 
-	s.uniqueServices[service.ID()] = service
-	service.SetAbsExpiry(expiry)
-	heap.Push(&s.services, service)
+	s.uniqueEvents[event.ID()] = event
+	event.SetAbsExpiry(expiry)
+	heap.Push(&s.events, event)
 }
 
 // Run runs the wheel, with a 1s tick
@@ -99,14 +99,14 @@ func (s *Planner) Run() {
 	defer ticker.Stop()
 }
 
-// Delete marks a Service to be deleted. Returns true if service
+// Delete marks a Event to be deleted. Returns true if event
 // found and marked for deletion, false if not.
-func (s *Planner) Delete(service *Service) bool {
-	id := service.ID()
+func (s *Planner) Delete(event *Event) bool {
+	id := event.ID()
 
-	if value, ok := s.uniqueServices[id]; ok {
+	if value, ok := s.uniqueEvents[id]; ok {
 		value.Delete()
-		delete(s.uniqueServices, id)
+		delete(s.uniqueEvents, id)
 		return true
 	}
 

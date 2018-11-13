@@ -60,7 +60,7 @@ func AlerterNew(waitTime int, alerter AlertFunc) Alerter {
 	}
 }
 
-// Start begins the alerter service
+// Start begins the alerter
 func (s *Alerter) Start() {
 	go s.run()
 }
