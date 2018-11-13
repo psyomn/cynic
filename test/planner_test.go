@@ -74,7 +74,7 @@ func TestTickAll(t *testing.T) {
 
 			time := givenTime
 			event := cynic.EventNew(time)
-			event.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+			event.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 				isExpired = true
 				return false, 0
 			})
@@ -152,7 +152,7 @@ func TestAddRepeatedEvent(t *testing.T) {
 
 	event := cynic.EventJSONNew("www.google.com", time)
 	event.Repeat(true)
-	event.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+	event.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		count++
 		return false, 0
 	})
@@ -173,7 +173,7 @@ func TestAddTickThenAddAgain(t *testing.T) {
 	planner := cynic.PlannerNew()
 	event := cynic.EventJSONNew("www.google.com", 10)
 	event.AddHook(
-		func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+		func(_ *cynic.StatusServer) (bool, interface{}) {
 			s1 = 1
 			return false, 0
 		})
@@ -188,7 +188,7 @@ func TestAddTickThenAddAgain(t *testing.T) {
 
 	nextEvent := cynic.EventJSONNew("www.HAHAHA.com", 10)
 	nextEvent.AddHook(
-		func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+		func(_ *cynic.StatusServer) (bool, interface{}) {
 			s2 = 1
 			return false, 0
 		})
@@ -219,7 +219,7 @@ func TestEventOffset(t *testing.T) {
 
 	planner.Add(&s)
 
-	s.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+	s.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		ran = true
 		return false, 0
 	})
@@ -522,12 +522,12 @@ func TestPlannerDelete(t *testing.T) {
 	ser := cynic.EventNew(1)
 	ser2 := cynic.EventNew(1)
 
-	ser.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		expire1 = true
 		return false, 0
 	})
 
-	ser2.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+	ser2.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		expire2 = true
 		return false, 0
 	})
@@ -556,15 +556,15 @@ func TestSecondsApart(t *testing.T) {
 
 	run := [...]bool{false, false, false}
 
-	s1.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+	s1.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		run[0] = true
 		return false, 0
 	})
-	s2.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+	s2.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		run[1] = true
 		return false, 0
 	})
-	s3.AddHook(func(_ *cynic.StatusServer) (_ bool, _ interface{}) {
+	s3.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
 		run[2] = true
 		return false, 0
 	})
