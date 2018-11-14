@@ -39,8 +39,14 @@ const (
 	EventCustom
 )
 
+// HookParameters is any state that should be passed to the hook
+type HookParameters struct {
+	Planner *Planner
+	Status  *StatusServer
+}
+
 // HookSignature specifies what the event hooks should look like.
-type HookSignature = func(*StatusServer) (bool, interface{})
+type HookSignature = func(*HookParameters) (bool, interface{})
 
 // Event is some http event location that should be queried in a
 // specified amount of time.
@@ -68,6 +74,7 @@ type Event struct {
 	offset    int
 	repeat    bool
 	Label     *string
+	planner   *Planner
 
 	repo    *StatusServer
 	alerter *Alerter
@@ -88,6 +95,7 @@ func EventNew(secs int) Event {
 		log.Fatal("NO. GOD. NO. GOD PLEASE NO. NO. NO. NOOOOOOOO.")
 	}
 
+	hooks := make([]HookSignature, 0)
 	id := atomic.AddUint64(&lastID, 1)
 
 	priority := secs + int(time.Now().Unix())
@@ -95,7 +103,7 @@ func EventNew(secs int) Event {
 	return Event{
 		url:       nil,
 		secs:      secs,
-		hooks:     nil,
+		hooks:     hooks,
 		immediate: false,
 		offset:    0,
 		repeat:    false,
@@ -118,8 +126,7 @@ func EventJSONNew(rawurl string, secs int) Event {
 	hooks := make([]HookSignature, 0)
 
 	priority := secs + int(time.Now().Unix())
-
-	atomic.AddUint64(&lastID, 1)
+	id := atomic.AddUint64(&lastID, 1)
 
 	return Event{
 		url:       u,
@@ -128,7 +135,7 @@ func EventJSONNew(rawurl string, secs int) Event {
 		immediate: false,
 		offset:    0,
 		repeat:    false,
-		id:        lastID,
+		id:        id,
 		alerter:   nil,
 		priority:  priority,
 		deleted:   false,
@@ -216,7 +223,11 @@ func (s *Event) Execute() {
 	}
 
 	for _, hook := range s.hooks {
-		ok, result := hook(s.repo)
+		ok, result := hook(&HookParameters{
+			s.planner,
+			s.repo,
+		})
+
 		s.maybeAlert(ok, result)
 	}
 }
@@ -278,6 +289,10 @@ func (s *Event) Delete() {
 // IsDeleted returns if event is marked for deletion
 func (s *Event) IsDeleted() bool {
 	return s.deleted
+}
+
+func (s *Event) setPlanner(planner *Planner) {
+	s.planner = planner
 }
 
 func jsonQuery(s *Event, t *StatusServer) {

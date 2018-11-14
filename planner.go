@@ -85,6 +85,7 @@ func (s *Planner) Add(event *Event) {
 
 	s.uniqueEvents[event.ID()] = event
 	event.SetAbsExpiry(expiry)
+	event.setPlanner(s)
 	heap.Push(&s.events, event)
 }
 

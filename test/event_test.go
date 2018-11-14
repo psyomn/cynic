@@ -107,7 +107,7 @@ func TestEventWithQueryNoRepo(t *testing.T) {
 func TestEventExecution(t *testing.T) {
 	ran := false
 	ser := cynic.EventNew(1)
-	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		ran = true
 		return false, 0
 	})
