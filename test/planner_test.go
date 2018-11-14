@@ -74,7 +74,7 @@ func TestTickAll(t *testing.T) {
 
 			time := givenTime
 			event := cynic.EventNew(time)
-			event.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+			event.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 				isExpired = true
 				return false, 0
 			})
@@ -152,7 +152,7 @@ func TestAddRepeatedEvent(t *testing.T) {
 
 	event := cynic.EventJSONNew("www.google.com", time)
 	event.Repeat(true)
-	event.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	event.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
 		return false, 0
 	})
@@ -173,7 +173,7 @@ func TestAddTickThenAddAgain(t *testing.T) {
 	planner := cynic.PlannerNew()
 	event := cynic.EventJSONNew("www.google.com", 10)
 	event.AddHook(
-		func(_ *cynic.StatusServer) (bool, interface{}) {
+		func(_ *cynic.HookParameters) (bool, interface{}) {
 			s1 = 1
 			return false, 0
 		})
@@ -188,7 +188,7 @@ func TestAddTickThenAddAgain(t *testing.T) {
 
 	nextEvent := cynic.EventJSONNew("www.HAHAHA.com", 10)
 	nextEvent.AddHook(
-		func(_ *cynic.StatusServer) (bool, interface{}) {
+		func(_ *cynic.HookParameters) (bool, interface{}) {
 			s2 = 1
 			return false, 0
 		})
@@ -219,7 +219,7 @@ func TestEventOffset(t *testing.T) {
 
 	planner.Add(&s)
 
-	s.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		ran = true
 		return false, 0
 	})
@@ -245,7 +245,7 @@ func TestEventImmediate(t *testing.T) {
 	time := 12
 	s := cynic.EventNew(time)
 	s.Immediate(true)
-	s.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
 		return false, 0
 	})
@@ -271,7 +271,7 @@ func TestEventImmediateWithRepeat(t *testing.T) {
 	s := cynic.EventNew(time)
 	s.Immediate(true)
 	s.Repeat(true)
-	s.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
 		return false, 0
 	})
@@ -295,7 +295,7 @@ func TestAddHalfMinute(t *testing.T) {
 	var count int
 
 	ser := cynic.EventNew(1)
-	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
 		return false, 0
 	})
@@ -320,7 +320,7 @@ func TestAddLastMinuteSecond(t *testing.T) {
 	var count int
 
 	ser := cynic.EventNew(1)
-	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
 		return false, 0
 	})
@@ -347,7 +347,7 @@ func TestRepeatedTicks(t *testing.T) {
 	var count int
 	ser := cynic.EventNew(1)
 	ser.Repeat(true)
-	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
 		return false, 0
 	})
@@ -374,7 +374,7 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 
 	ser.Label = &label
 	ser.Repeat(true)
-	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
 		return false, 0
 	})
@@ -439,7 +439,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 			var count int
 			ser := cynic.EventNew(interval)
 			ser.Repeat(true)
-			ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+			ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 				count++
 				return false, 0
 			})
@@ -522,12 +522,12 @@ func TestPlannerDelete(t *testing.T) {
 	ser := cynic.EventNew(1)
 	ser2 := cynic.EventNew(1)
 
-	ser.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		expire1 = true
 		return false, 0
 	})
 
-	ser2.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	ser2.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		expire2 = true
 		return false, 0
 	})
@@ -556,15 +556,15 @@ func TestSecondsApart(t *testing.T) {
 
 	run := [...]bool{false, false, false}
 
-	s1.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	s1.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		run[0] = true
 		return false, 0
 	})
-	s2.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	s2.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		run[1] = true
 		return false, 0
 	})
-	s3.AddHook(func(_ *cynic.StatusServer) (bool, interface{}) {
+	s3.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		run[2] = true
 		return false, 0
 	})
@@ -589,4 +589,49 @@ func TestSecondsApart(t *testing.T) {
 
 	pl.Tick()
 	assert(t, run[0] && !run[1] && run[2])
+}
+
+func TestChainAddition(t *testing.T) {
+	s1 := cynic.EventNew(1)
+	s2 := cynic.EventNew(1)
+	s3 := cynic.EventNew(1)
+	s4 := cynic.EventNew(1)
+	run := [...]bool{false, false, false, false}
+
+	hook := func(e *cynic.Event, r *bool) cynic.HookSignature {
+		return func(params *cynic.HookParameters) (bool, interface{}) {
+			if params == nil {
+				log.Fatal("hook params are nil")
+			}
+
+			if params.Planner == nil {
+				log.Fatal("planner should not be nil")
+			}
+
+			if e != nil {
+				params.Planner.Add(e)
+			}
+
+			*r = true
+
+			return false, 0
+		}
+	}
+
+	s1.AddHook(hook(&s2, &run[0]))
+	s2.AddHook(hook(&s3, &run[1]))
+	s3.AddHook(hook(&s4, &run[2]))
+	s4.AddHook(hook(nil, &run[3]))
+
+	planner := cynic.PlannerNew()
+
+	planner.Add(&s1)
+	planner.Tick()
+	assert(t, !(run[0] || run[1] || run[2] || run[3]))
+
+	for i := 0; i < 4; i++ {
+		planner.Tick()
+	}
+
+	assert(t, (run[0] && run[1] && run[2] && run[3]))
 }

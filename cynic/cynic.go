@@ -98,7 +98,7 @@ type result struct {
 // You need to respect this interface so that you can bind hooks to
 // your events. You can return a struct with json hints as shown
 // bellow, and cynic will add that to the /status endpoint.
-func exampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
+func exampleHook(_ *cynic.HookParameters) (alert bool, data interface{}) {
 	fmt.Println("Firing the example hook yay!")
 	return false, result{
 		Alert:   true,
@@ -109,7 +109,7 @@ func exampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 var exHook2Cnt int
 
 // Another example hook
-func anotherExampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
+func anotherExampleHook(_ *cynic.HookParameters) (alert bool, data interface{}) {
 	fmt.Println("Firing example hook 2 yay!")
 	fmt.Println("exhook2Cnt: ", exHook2Cnt)
 	exHook2Cnt++
@@ -120,7 +120,7 @@ func anotherExampleHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
 	}
 }
 
-func finalHook(_ *cynic.StatusServer) (alert bool, data interface{}) {
+func finalHook(_ *cynic.HookParameters) (alert bool, data interface{}) {
 	fmt.Println("IT'S THE FINAL HOOKDOWN")
 	return (time.Now().Unix()%2 == 0), result{
 		Alert:   false,
