@@ -44,7 +44,11 @@ func PlannerNew() *Planner {
 	return &tw
 }
 
+// Len returns the amount of events the planner has stored for later
+// execution
 func (s *Planner) Len() int {
+	s.mux.Lock()
+	defer s.mux.Unlock()
 	return len(s.events)
 }
 
