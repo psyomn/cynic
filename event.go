@@ -222,6 +222,11 @@ func (s *Event) Execute() {
 		jsonQuery(s, s.repo)
 	}
 
+	if s.url != nil && s.repo == nil {
+		// At least warn that somethign is awry
+		log.Println("event is a json event without repo bound: ", s.String())
+	}
+
 	for _, hook := range s.hooks {
 		ok, result := hook(&HookParameters{
 			s.planner,
