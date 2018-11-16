@@ -41,26 +41,25 @@ const (
 
 // HookParameters is any state that should be passed to the hook
 type HookParameters struct {
+	// Planner is access to the planner that the hook executes
+	// on. The user for example, should be able to add more events
+	// through a hook.
 	Planner *Planner
-	Status  *StatusServer
+
+	// Status exposes the status repo. It acts as a repository for
+	// hooks to store information after execution.
+	Status *StatusServer
+
+	// Extra is meant to be used by the user for any extra state
+	// that needs to be passed to the hooks.
+	Extra interface{}
 }
 
 // HookSignature specifies what the event hooks should look like.
 type HookSignature = func(*HookParameters) (bool, interface{})
 
-// Event is some http event location that should be queried in a
-// specified amount of time.
-//
-// Hooks: it is possible to assign a hook per event. When the
-// event successfully fires and finishes, the retrieved information
-// will be passed to the hook. The hook can do whatever, and should
-// return a encodable JSON structure.
-//
-// The hook can do whatever with said information. User defined things
-// happen in the hook, and the hook returns a structure ready to be
-// encoded into a JSON object, inserted in the sync map, and then
-// served back to the client whenever queried.
-//
+// Event is some event that should be executed in a specified
+// amount of time. There are no real time guarantees.
 // - A event is an action
 // - A event can have many:
 //   - hooks (that can act as contracts)
@@ -231,6 +230,7 @@ func (s *Event) Execute() {
 		ok, result := hook(&HookParameters{
 			s.planner,
 			s.repo,
+			nil,
 		})
 
 		s.maybeAlert(ok, result)
