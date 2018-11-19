@@ -635,3 +635,29 @@ func TestChainAddition(t *testing.T) {
 
 	assert(t, (run[0] && run[1] && run[2] && run[3]))
 }
+
+func TestMultipleEventsAndHooks(t *testing.T) {
+	var count int
+	const max = 10
+
+	hk := func(_ *cynic.HookParameters) (bool, interface{}) {
+		count++
+		return false, 0
+	}
+
+	planner := cynic.PlannerNew()
+	for i := 0; i < max; i++ {
+		newEvent := cynic.EventNew(1)
+
+		// Add the hook twice, for realsies
+		newEvent.AddHook(hk)
+		newEvent.AddHook(hk)
+
+		planner.Add(&newEvent)
+	}
+
+	planner.Tick() // place cursor
+	planner.Tick() // should execute
+
+	assert(t, count == 20)
+}
