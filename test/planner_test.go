@@ -212,17 +212,17 @@ func TestEventOffset(t *testing.T) {
 	secs := 3
 	offsetTime := 2
 	ran := false
-	planner := cynic.PlannerNew()
 
 	s := cynic.EventNew(secs)
 	s.Offset(offsetTime)
-
-	planner.Add(&s)
-
 	s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		ran = true
 		return false, 0
 	})
+
+	planner := cynic.PlannerNew()
+	planner.Add(&s)
+	planner.Tick() // place cursor
 
 	assert(t, !ran)
 
@@ -660,4 +660,42 @@ func TestMultipleEventsAndHooks(t *testing.T) {
 	planner.Tick() // should execute
 
 	assert(t, count == 20)
+}
+
+func TestImmediateWithOffset(t *testing.T) {
+	var count int
+	offset := 5
+	eventTime := 10
+
+	event := cynic.EventNew(eventTime)
+	event.Immediate(true)
+	event.Offset(offset)
+	event.Repeat(true)
+	event.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		count++
+		return false, 0
+	})
+
+	planner := cynic.PlannerNew()
+	planner.Add(&event)
+
+	// This means that it should tick:
+	// - at first tick (seconds = 1 + 5) -> due to offset
+	// - after 10 seconds (absolute time = 16 seconds)
+
+	// should not have counted yet
+	assert(t, count == 0)
+
+	// Everything upto the offset is zero
+	for i := 0; i < offset; i++ {
+		planner.Tick()
+		assert(t, count == 0)
+	}
+	planner.Tick()
+	assert(t, count == 1)
+
+	for i := 0; i < eventTime; i++ {
+		planner.Tick()
+	}
+	assert(t, count == 2)
 }

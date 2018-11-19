@@ -107,10 +107,15 @@ func (s *Planner) Add(event *Event) {
 	var expiry int64
 
 	if event.IsImmediate() {
-		expiry = 1
+		if event.GetOffset() > 0 {
+			expiry = int64(s.ticks + event.GetOffset())
+		} else {
+			expiry = int64(1 + s.ticks)
+		}
 		event.Immediate(false)
+		event.Offset(0)
 	} else {
-		expiry = int64(event.GetSecs() + s.ticks)
+		expiry = int64(event.GetOffset() + event.GetSecs() + s.ticks)
 	}
 
 	s.uniqueEvents[event.ID()] = event
