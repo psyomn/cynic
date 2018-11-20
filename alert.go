@@ -40,7 +40,6 @@ type Alerter struct {
 // alerts.
 type AlertMessage struct {
 	Response      interface{} `json:"response_text"`
-	Endpoint      string      `json:"endpoint"`
 	Now           string      `json:"now"`
 	CynicHostname string      `json:"cynic_hostname"`
 }

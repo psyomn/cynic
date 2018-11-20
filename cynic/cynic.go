@@ -68,7 +68,6 @@ func exampleAlerter(messages []cynic.AlertMessage) {
 	for ix, el := range messages {
 		fmt.Println("# ", ix)
 		fmt.Println("#  response: ", el.Response)
-		fmt.Println("#  endpoint: ", el.Endpoint)
 		fmt.Println("#  now     : ", el.Now)
 		fmt.Println("#  cynichos: ", el.CynicHostname)
 		fmt.Println("#        ##########################")
@@ -148,9 +147,9 @@ func main() {
 
 	var events []cynic.Event
 
-	events = append(events, cynic.EventJSONNew("http://localhost:9001/one", 1))
-	events = append(events, cynic.EventJSONNew("http://localhost:9001/two", 2))
-	events = append(events, cynic.EventJSONNew("http://localhost:9001/flappyerror", 3))
+	events = append(events, cynic.EventNew(1)) // "http://localhost:9001/one",
+	events = append(events, cynic.EventNew(2)) // "http://localhost:9001/two",
+	events = append(events, cynic.EventNew(3)) // "http://localhost:9001/flappyerror",
 
 	events[0].AddHook(exampleHook)
 	events[0].AddHook(anotherExampleHook)

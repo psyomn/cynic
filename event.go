@@ -19,24 +19,10 @@ package cynic
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
-	"net/url"
 	"os"
 	"sync/atomic"
 	"time"
-)
-
-const (
-	// EventDefault is for events that query in the default
-	// way, which is JSON, restful endpoints
-	EventDefault = iota
-
-	// EventCustom is for events that query other endpoints
-	// instead of JSON. It is up to the user to implement support
-	// for these endpoints.
-	EventCustom
 )
 
 // HookParameters is any state that should be passed to the hook
@@ -66,7 +52,6 @@ type HookSignature = func(*HookParameters) (bool, interface{})
 // - A event may be bound to a data repository/cache
 type Event struct {
 	id        uint64
-	url       *url.URL
 	secs      int
 	hooks     []HookSignature
 	immediate bool
@@ -92,7 +77,7 @@ var lastID uint64
 // execution
 func EventNew(secs int) Event {
 	if secs <= 0 {
-		log.Fatal("NO. GOD. NO. GOD PLEASE NO. NO. NO. NOOOOOOOO.")
+		log.Fatal("Events must have seconds > 0")
 	}
 
 	hooks := make([]HookSignature, 0)
@@ -101,34 +86,6 @@ func EventNew(secs int) Event {
 	priority := secs + int(time.Now().Unix())
 
 	return Event{
-		url:       nil,
-		secs:      secs,
-		hooks:     hooks,
-		immediate: false,
-		offset:    0,
-		repeat:    false,
-		id:        id,
-		priority:  priority,
-		deleted:   false,
-	}
-}
-
-// EventJSONNew creates a new event instance, which will query a
-// json restful endpoint.
-func EventJSONNew(rawurl string, secs int) Event {
-	if secs <= 0 {
-		log.Fatal("NO. GOD. NO. GOD PLEASE NO. NO. NO. NOOOOOOOO.")
-	}
-
-	u, err := url.Parse(rawurl)
-	nilOrDie(err, "invalid http endpoint url")
-	hooks := make([]HookSignature, 0)
-
-	priority := secs + int(time.Now().Unix())
-	id := atomic.AddUint64(&lastID, 1)
-
-	return Event{
-		url:       u,
 		secs:      secs,
 		hooks:     hooks,
 		immediate: false,
@@ -211,21 +168,6 @@ func (s *Event) DataRepo(repo *StatusServer) {
 
 // Execute the event
 func (s *Event) Execute() {
-	// TODO this should eventually be split into something else
-	// (ie events should have some sort of interface, and split
-	// the logic of http querying and hook execution)
-	if s.url != nil && s.repo != nil {
-		// If there is a url and repo specified, then fetch
-		// the data and store it
-		jsonQuery(s, s.repo)
-	}
-
-	if s.url != nil && s.repo == nil {
-		// At least warn that somethign is awry
-		// TODO eventually this should be removed
-		log.Println("event is a json event without repo bound: ", s.String())
-	}
-
 	for _, hook := range s.hooks {
 		ok, result := hook(&HookParameters{
 			s.planner,
@@ -250,15 +192,8 @@ func (s *Event) maybeAlert(shouldAlert bool, result interface{}) {
 		hostVal = "badhost"
 	}
 
-	// TODO clean this up -- url should no longer be a thing
-	endpoint := ""
-	if s.url != nil {
-		endpoint = s.url.String()
-	}
-
 	alerter.Ch <- AlertMessage{
 		Response:      result,
-		Endpoint:      endpoint,
 		Now:           time.Now().Format(time.RFC3339),
 		CynicHostname: hostVal,
 	}
@@ -283,8 +218,7 @@ func (s *Event) GetAbsExpiry() int64 {
 
 func (s *Event) String() string {
 	return fmt.Sprintf(
-		"Event<url:%v secs:%d hooks:%v immediate:%t offset:%d repeat:%t label:%v id:%d repo:%v>",
-		s.url,
+		"Event<secs:%d hooks:%v immediate:%t offset:%d repeat:%t label:%v id:%d repo:%v>",
 		s.secs,
 		s.hooks,
 		s.immediate,
@@ -312,43 +246,4 @@ func (s *Event) setPlanner(planner *Planner) {
 // SetExtra state you may want passed to hooks
 func (s *Event) SetExtra(extra interface{}) {
 	s.extra = extra
-}
-
-func jsonQuery(s *Event, t *StatusServer) {
-	type eventError struct {
-		Error string `json:"error"`
-	}
-
-	address := s.url.String()
-
-	resp, err := http.Get(address)
-	if err != nil {
-		message := "problem getting response"
-		nilAndOk(err, message)
-		t.Update(address, eventError{Error: message})
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		buff := fmt.Sprintf("got non 200 code: %d", resp.StatusCode)
-		t.Update(address, eventError{Error: buff})
-		return
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		message := "problem reading data from endpoint"
-		nilAndOk(err, message)
-		t.Update(address, eventError{Error: message})
-		return
-	}
-
-	var json EndpointJSON = parseEndpointJSON(body[:])
-
-	// The applications of contracts/results should only be done
-	// for know json event endpoints. If we have a custom hook,
-	// the hook must be the one that decides what goes in the
-	// status cache.
-	t.Update(s.UniqStr(), json)
 }
