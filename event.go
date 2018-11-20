@@ -83,6 +83,8 @@ type Event struct {
 	index    int
 	priority int
 	deleted  bool
+
+	extra interface{}
 }
 
 var lastID uint64
@@ -230,7 +232,7 @@ func (s *Event) Execute() {
 		ok, result := hook(&HookParameters{
 			s.planner,
 			s.repo,
-			nil,
+			s.extra,
 		})
 
 		s.maybeAlert(ok, result)
@@ -298,6 +300,11 @@ func (s *Event) IsDeleted() bool {
 
 func (s *Event) setPlanner(planner *Planner) {
 	s.planner = planner
+}
+
+// Set extra state you may want passed to hooks
+func (s *Event) SetExtra(extra interface{}) {
+	s.extra = extra
 }
 
 func jsonQuery(s *Event, t *StatusServer) {
