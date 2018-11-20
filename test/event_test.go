@@ -29,9 +29,9 @@ import (
 )
 
 func TestEventIdIncreaseMonotonically(t *testing.T) {
-	s1 := cynic.EventJSONNew("www.google.com", 1)
-	s2 := cynic.EventJSONNew("www.hahaha.com", 2)
-	s3 := cynic.EventJSONNew("www.derp.com", 3)
+	s1 := cynic.EventNew(1)
+	s2 := cynic.EventNew(2)
+	s3 := cynic.EventNew(3)
 
 	assert(t, s1.ID() != s2.ID() &&
 		s1.ID() != s3.ID() &&
@@ -78,10 +78,14 @@ func TestEventWithQueryAndRepo(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ser := cynic.EventJSONNew(ts.URL, 1)
 	repo := cynic.StatusServerNew("0", "/status/testeventwithqueryandrepo")
-	ser.DataRepo(&repo)
 
+	ser := cynic.EventNew(1)
+	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		http.Get(ts.URL)
+		return false, 0
+	})
+	ser.DataRepo(&repo)
 	ser.Execute()
 
 	assert(t, ran)
@@ -95,10 +99,13 @@ func TestEventWithQueryNoRepo(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ser := cynic.EventJSONNew(ts.URL, 1)
 	repo := cynic.StatusServerNew("0", "/status/testeventwithquerynorepo")
+	ser := cynic.EventNew(1)
+	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		http.Get(ts.URL)
+		return false, 0
+	})
 	ser.DataRepo(&repo)
-
 	ser.Execute()
 
 	assert(t, ran)

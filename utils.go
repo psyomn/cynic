@@ -21,12 +21,6 @@ import (
 	"log"
 )
 
-func nilOrDie(err error, str string) {
-	if err != nil {
-		log.Fatal(str, ": ", err)
-	}
-}
-
 func nilAndOk(err error, str string) {
 	if err != nil {
 		log.Print(str, ": ", err)
