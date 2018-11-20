@@ -116,3 +116,15 @@ func TestEventExecution(t *testing.T) {
 
 	assert(t, ran)
 }
+
+func TestExtraField(t *testing.T) {
+	extra := "my field"
+	event := cynic.EventNew(1)
+	event.SetExtra(interface{}(extra))
+	event.AddHook(func(hookParams *cynic.HookParameters) (bool, interface{}) {
+		x := hookParams.Extra.(string)
+		assert(t, extra == x)
+		return false, 0
+	})
+	event.Execute()
+}
