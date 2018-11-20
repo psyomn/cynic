@@ -19,6 +19,7 @@ package cynic
 
 import (
 	"container/heap"
+	"sync"
 	"time"
 )
 
@@ -32,6 +33,7 @@ type Planner struct {
 	events       EventQueue
 	ticks        int
 	uniqueEvents eventMap
+	mux          sync.Mutex
 }
 
 // PlannerNew creates a new, empty, timing wheel.
@@ -40,6 +42,31 @@ func PlannerNew() *Planner {
 	tw.events = make(EventQueue, 0)
 	tw.uniqueEvents = make(eventMap)
 	return &tw
+}
+
+// Len returns the amount of events the planner has stored for later
+// execution
+func (s *Planner) Len() int {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	return len(s.events)
+}
+
+func (s *Planner) String() string {
+	mkline := func(s string) string {
+		return s + "\n"
+	}
+	var str string
+	str += mkline("=======================")
+	str += mkline("Planner")
+	str += mkline("=======================")
+	str += mkline("Events: \n")
+
+	for _, el := range s.events {
+		str += mkline("  - " + el.String())
+	}
+	str += mkline("=======================")
+	return str
 }
 
 // Tick moves the cursor of the timing wheel, by one second.
@@ -74,13 +101,21 @@ func (s *Planner) Tick() {
 
 // Add adds an event to the planner
 func (s *Planner) Add(event *Event) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+
 	var expiry int64
 
 	if event.IsImmediate() {
-		expiry = 1
+		if event.GetOffset() > 0 {
+			expiry = int64(s.ticks + event.GetOffset())
+		} else {
+			expiry = int64(1 + s.ticks)
+		}
 		event.Immediate(false)
+		event.Offset(0)
 	} else {
-		expiry = int64(event.GetSecs() + s.ticks)
+		expiry = int64(event.GetOffset() + event.GetSecs() + s.ticks)
 	}
 
 	s.uniqueEvents[event.ID()] = event
@@ -103,6 +138,9 @@ func (s *Planner) Run() {
 // Delete marks a Event to be deleted. Returns true if event
 // found and marked for deletion, false if not.
 func (s *Planner) Delete(event *Event) bool {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+
 	id := event.ID()
 
 	if value, ok := s.uniqueEvents[id]; ok {

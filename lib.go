@@ -19,6 +19,7 @@ limitations under the License.
 package cynic
 
 import (
+	"sync"
 	"time"
 )
 
@@ -54,11 +55,14 @@ func Start(session Session) {
 	}
 
 	ticker := time.NewTicker(time.Second)
-	// TODO: maybe use planner.run
+
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
 		for range ticker.C {
 			planner.Tick()
 		}
+		wg.Done()
 	}()
 	defer ticker.Stop()
 
@@ -66,4 +70,6 @@ func Start(session Session) {
 		statusSer.Start()
 		defer statusSer.Stop()
 	}
+
+	wg.Wait()
 }
