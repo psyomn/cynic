@@ -72,7 +72,7 @@ type Event struct {
 	immediate bool
 	offset    int
 	repeat    bool
-	Label     *string
+	Label     string
 	planner   *Planner
 
 	repo    *StatusServer
@@ -198,8 +198,8 @@ func (s *Event) SetSecs(secs int) {
 func (s *Event) UniqStr() string {
 	var ret string
 
-	if s.Label != nil {
-		ret = fmt.Sprintf("%s-%d", *s.Label, s.id)
+	if s.Label != "" {
+		ret = fmt.Sprintf("%s-%d", s.Label, s.id)
 	} else {
 		ret = fmt.Sprintf("%d", s.id)
 	}
