@@ -51,7 +51,10 @@ func Start(session Session) {
 
 	for i := 0; i < len(session.Events); i++ {
 		planner.Add(&session.Events[i])
+		// TODO REMOVE ME: this should be accessed through
+		// hookparams.planner in the future
 		session.Events[i].alerter = session.Alerter
+		planner.alerter = session.Alerter
 	}
 
 	ticker := time.NewTicker(time.Second)
