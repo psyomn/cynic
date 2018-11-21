@@ -372,7 +372,7 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 	ser := cynic.EventNew(1)
 	label := "simple-repeated-rotation-x3"
 
-	ser.Label = &label
+	ser.Label = label
 	ser.Repeat(true)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
