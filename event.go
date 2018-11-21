@@ -309,7 +309,7 @@ func (s *Event) setPlanner(planner *Planner) {
 	s.planner = planner
 }
 
-// Set extra state you may want passed to hooks
+// SetExtra state you may want passed to hooks
 func (s *Event) SetExtra(extra interface{}) {
 	s.extra = extra
 }
