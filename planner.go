@@ -34,6 +34,7 @@ type Planner struct {
 	ticks        int
 	uniqueEvents eventMap
 	mux          sync.Mutex
+	alerter      *Alerter
 }
 
 // PlannerNew creates a new, empty, timing wheel.
@@ -150,4 +151,14 @@ func (s *Planner) Delete(event *Event) bool {
 	}
 
 	return false
+}
+
+// GetAlerter gets the assigned alerter of planner
+func (s *Planner) GetAlerter() *Alerter {
+	return s.alerter
+}
+
+// SetAlerter sets the alerter
+func (s *Planner) SetAlerter(alerter *Alerter) {
+	s.alerter = alerter
 }

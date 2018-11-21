@@ -225,6 +225,7 @@ func (s *Event) Execute() {
 
 	if s.url != nil && s.repo == nil {
 		// At least warn that somethign is awry
+		// TODO eventually this should be removed
 		log.Println("event is a json event without repo bound: ", s.String())
 	}
 
@@ -249,9 +250,15 @@ func (s *Event) maybeAlert(shouldAlert bool, result interface{}) {
 		hostVal = "badhost"
 	}
 
+	// TODO clean this up -- url should no longer be a thing
+	endpoint := ""
+	if s.url != nil {
+		endpoint = s.url.String()
+	}
+
 	s.alerter.Ch <- AlertMessage{
 		Response:      result,
-		Endpoint:      s.url.String(),
+		Endpoint:      endpoint,
 		Now:           time.Now().Format(time.RFC3339),
 		CynicHostname: hostVal,
 	}
@@ -305,6 +312,12 @@ func (s *Event) setPlanner(planner *Planner) {
 // Set extra state you may want passed to hooks
 func (s *Event) SetExtra(extra interface{}) {
 	s.extra = extra
+}
+
+// SetAlerter sets the alerter for an event.
+// TODO: this should be moved to planner
+func (s *Event) SetAlerter(alerter *Alerter) {
+	s.alerter = alerter
 }
 
 func jsonQuery(s *Event, t *StatusServer) {
