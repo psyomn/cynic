@@ -75,8 +75,7 @@ type Event struct {
 	Label     string
 	planner   *Planner
 
-	repo    *StatusServer
-	alerter *Alerter
+	repo *StatusServer
 
 	absExpiry int64
 
@@ -109,7 +108,6 @@ func EventNew(secs int) Event {
 		offset:    0,
 		repeat:    false,
 		id:        id,
-		alerter:   nil,
 		priority:  priority,
 		deleted:   false,
 	}
@@ -137,7 +135,6 @@ func EventJSONNew(rawurl string, secs int) Event {
 		offset:    0,
 		repeat:    false,
 		id:        id,
-		alerter:   nil,
 		priority:  priority,
 		deleted:   false,
 	}
@@ -241,12 +238,15 @@ func (s *Event) Execute() {
 }
 
 func (s *Event) maybeAlert(shouldAlert bool, result interface{}) {
-	if s.alerter == nil || !shouldAlert {
+	if !shouldAlert || s.planner == nil || s.planner.alerter == nil {
 		return
 	}
 
+	alerter := s.planner.alerter
+
 	hostVal, err := os.Hostname()
 	if err != nil {
+		// TODO func init() might be a better candidate for this
 		hostVal = "badhost"
 	}
 
@@ -256,7 +256,7 @@ func (s *Event) maybeAlert(shouldAlert bool, result interface{}) {
 		endpoint = s.url.String()
 	}
 
-	s.alerter.Ch <- AlertMessage{
+	alerter.Ch <- AlertMessage{
 		Response:      result,
 		Endpoint:      endpoint,
 		Now:           time.Now().Format(time.RFC3339),
@@ -312,12 +312,6 @@ func (s *Event) setPlanner(planner *Planner) {
 // SetExtra state you may want passed to hooks
 func (s *Event) SetExtra(extra interface{}) {
 	s.extra = extra
-}
-
-// SetAlerter sets the alerter for an event.
-// TODO: this should be moved to planner
-func (s *Event) SetAlerter(alerter *Alerter) {
-	s.alerter = alerter
 }
 
 func jsonQuery(s *Event, t *StatusServer) {
