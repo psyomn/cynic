@@ -118,7 +118,7 @@ func (s *Event) IsImmediate() bool {
 }
 
 // Offset sets the time before the event starts ticking
-func (s *Event) Offset(offset int) {
+func (s *Event) SetOffset(offset int) {
 	s.offset = offset
 }
 

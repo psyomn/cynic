@@ -154,7 +154,7 @@ func main() {
 	events[0].AddHook(exampleHook)
 	events[0].AddHook(anotherExampleHook)
 	events[0].AddHook(finalHook)
-	events[0].Offset(10) // delay 10 seconds before starting
+	events[0].SetOffset(10) // delay 10 seconds before starting
 	events[0].Repeat(true)
 
 	events[1].AddHook(exampleHook)

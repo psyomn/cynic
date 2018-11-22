@@ -82,7 +82,7 @@ func (s *EventBuilder) makeDistributeEvents() bool {
 
 	for i := 0; i < eventCount; i++ {
 		s.events[i].SetSecs(interval)
-		s.events[i].Offset(interval * i)
+		s.events[i].SetOffset(interval * i)
 	}
 
 	return true
