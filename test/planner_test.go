@@ -215,7 +215,7 @@ func TestEventOffset(t *testing.T) {
 	ran := false
 
 	s := cynic.EventNew(secs)
-	s.Offset(offsetTime)
+	s.SetOffset(offsetTime)
 	s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		ran = true
 		return false, 0
@@ -670,7 +670,7 @@ func TestImmediateWithOffset(t *testing.T) {
 
 	event := cynic.EventNew(eventTime)
 	event.Immediate(true)
-	event.Offset(offset)
+	event.SetOffset(offset)
 	event.Repeat(true)
 	event.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
