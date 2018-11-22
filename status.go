@@ -85,7 +85,11 @@ func (s *StatusServer) Start() {
 func (s *StatusServer) Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	nilAndOk(s.server.Shutdown(ctx), "could not shutdown server gracefully")
+
+	err := s.server.Shutdown(ctx)
+	if err != nil {
+		log.Println("could not shutdown status server gracefully: ", err)
+	}
 }
 
 // Update updates the information about all the contracts that are
@@ -128,7 +132,7 @@ func (s *StatusServer) makeResponse(w http.ResponseWriter, _ *http.Request) {
 
 	if err != nil {
 		// TODO maybe there's something cleaner I can do here
-		nilAndOk(err, "problem generating json for status endpoint")
+		log.Println("problem generating json for status endpoint: ", err)
 		fmt.Fprintf(w, "{\"error\":\"could not format status data\"}")
 	} else {
 		fmt.Fprintf(w, string(jsonEnc))
