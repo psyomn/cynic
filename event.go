@@ -25,6 +25,22 @@ import (
 	"time"
 )
 
+var (
+	hostVal = ""
+)
+
+func init() {
+	{ // Hostname resolution
+		maybeHostVal, err := os.Hostname()
+		if err != nil {
+			log.Println("couldn't get hostname: ", err)
+			hostVal = "badhost"
+		} else {
+			hostVal = maybeHostVal
+		}
+	}
+}
+
 // HookParameters is any state that should be passed to the hook
 type HookParameters struct {
 	// Planner is access to the planner that the hook executes
@@ -234,12 +250,6 @@ func (s *Event) maybeAlert(shouldAlert bool, result interface{}) {
 	}
 
 	alerter := s.planner.alerter
-
-	hostVal, err := os.Hostname()
-	if err != nil {
-		// TODO func init() might be a better candidate for this
-		hostVal = "badhost"
-	}
 
 	alerter.Ch <- AlertMessage{
 		Response:      result,
