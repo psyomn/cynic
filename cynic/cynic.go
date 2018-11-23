@@ -18,9 +18,12 @@ limitations under the License.
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -68,7 +71,6 @@ func exampleAlerter(messages []cynic.AlertMessage) {
 	for ix, el := range messages {
 		fmt.Println("# ", ix)
 		fmt.Println("#  response: ", el.Response)
-		fmt.Println("#  endpoint: ", el.Endpoint)
 		fmt.Println("#  now     : ", el.Now)
 		fmt.Println("#  cynichos: ", el.CynicHostname)
 		fmt.Println("#        ##########################")
@@ -95,36 +97,86 @@ type result struct {
 	Message string `json:"message"`
 }
 
+func simpleGet(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Println("problem accessing url: ", url)
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	str, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(str), nil
+}
+
 // You need to respect this interface so that you can bind hooks to
 // your events. You can return a struct with json hints as shown
 // bellow, and cynic will add that to the /status endpoint.
-func exampleHook(_ *cynic.HookParameters) (alert bool, data interface{}) {
-	fmt.Println("Firing the example hook yay!")
+func exampleHook(params *cynic.HookParameters) (alert bool, data interface{}) {
+	fmt.Println("executing exampleHook!")
+
+	message := ""
+	url := "http://localhost:9001/one"
+	resp, err := simpleGet(url)
+
+	if err != nil {
+		message = err.Error()
+	} else {
+		message = resp
+	}
+
+	params.Status.Update("exampleHook", message)
+
 	return false, result{
 		Alert:   true,
-		Message: "AARRRGGHHHHHH",
+		Message: message,
 	}
 }
-
-var exHook2Cnt int
 
 // Another example hook
-func anotherExampleHook(_ *cynic.HookParameters) (alert bool, data interface{}) {
-	fmt.Println("Firing example hook 2 yay!")
-	fmt.Println("exhook2Cnt: ", exHook2Cnt)
-	exHook2Cnt++
+func anotherExampleHook(params *cynic.HookParameters) (alert bool, data interface{}) {
+	fmt.Println("execute anotherExampleHook!")
+	url := "http://localhost:9001/two"
+	resp, err := simpleGet(url)
+	message := ""
+
+	if err != nil {
+		message = err.Error()
+	} else {
+		message = resp
+	}
+
+	var target interface{}
+	json.Unmarshal([]byte(message), &target)
+	params.Status.Update("anotherExampleHook", target)
 
 	return false, result{
 		Alert:   true,
-		Message: "I feel calm and collected inside.",
+		Message: message,
 	}
 }
 
-func finalHook(_ *cynic.HookParameters) (alert bool, data interface{}) {
-	fmt.Println("IT'S THE FINAL HOOKDOWN")
+func finalHook(params *cynic.HookParameters) (alert bool, data interface{}) {
+	fmt.Println("execute finalHook!")
+	url := "http://localhost:9001/flappyerror"
+
+	message := ""
+	resp, err := simpleGet(url)
+	if err != nil {
+		message = err.Error()
+	} else {
+		message = resp
+	}
+
+	params.Status.Update("finalHook", message)
+
 	return (time.Now().Unix()%2 == 0), result{
 		Alert:   false,
-		Message: "I feel calm and collected inside.",
+		Message: message,
 	}
 }
 
@@ -144,39 +196,28 @@ func main() {
 
 	handleLog(logPath)
 
-	log.Printf("status-port: %s\n", statusPort)
-
 	var events []cynic.Event
 
-	events = append(events, cynic.EventJSONNew("http://localhost:9001/one", 1))
-	events = append(events, cynic.EventJSONNew("http://localhost:9001/two", 2))
-	events = append(events, cynic.EventJSONNew("http://localhost:9001/flappyerror", 3))
+	events = append(events, cynic.EventNew(1))
+	events = append(events, cynic.EventNew(2))
+	events = append(events, cynic.EventNew(3))
 
-	events[0].AddHook(exampleHook)
 	events[0].AddHook(anotherExampleHook)
-	events[0].AddHook(finalHook)
-	events[0].Offset(10) // delay 10 seconds before starting
+	events[0].SetOffset(10) // delay 10 seconds before starting
 	events[0].Repeat(true)
 
 	events[1].AddHook(exampleHook)
 	events[1].Repeat(true)
 
-	events[2].AddHook(exampleHook)
-	events[2].AddHook(anotherExampleHook)
 	events[2].AddHook(finalHook)
 	events[2].Repeat(true)
-
-	for i := 0; i < len(events); i++ {
-		fmt.Println("entry: ", events[i])
-		fmt.Printf("address: %p\n", &events[i])
-	}
 
 	var statusServers []cynic.StatusServer
 	statusServer := cynic.StatusServerNew(statusPort, cynic.DefaultStatusEndpoint)
 	statusServers = append(statusServers, statusServer)
 
 	for i := 0; i < len(events); i++ {
-		events[i].DataRepo(&statusServer)
+		events[i].SetDataRepo(&statusServer)
 	}
 
 	alerter := cynic.AlerterNew(20, exampleAlerter)

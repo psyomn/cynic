@@ -114,7 +114,7 @@ func (s *Planner) Add(event *Event) {
 			expiry = int64(1 + s.ticks)
 		}
 		event.Immediate(false)
-		event.Offset(0)
+		event.SetOffset(0)
 	} else {
 		expiry = int64(event.GetOffset() + event.GetSecs() + s.ticks)
 	}

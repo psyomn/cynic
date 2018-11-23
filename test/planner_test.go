@@ -37,17 +37,16 @@ const (
 func TestAdd(t *testing.T) {
 	planner := cynic.PlannerNew()
 
-	// Test most edge cases
-	eventSecs := cynic.EventJSONNew("www.google.com", 1)
-	eventMaxSecs := cynic.EventJSONNew("www.google.com", 59)
+	eventSecs := cynic.EventNew(1 * second)
+	eventMaxSecs := cynic.EventNew(59 * second)
 
-	eventMinute := cynic.EventJSONNew("www.google.com", 60)
-	eventMaxMinute := cynic.EventJSONNew("www.google.com", 60*60-1)
+	eventMinute := cynic.EventNew(1 * minute)
+	eventMaxMinute := cynic.EventNew(1*hour - 1)
 
-	eventHour := cynic.EventJSONNew("www.google.com", 60*60)
-	eventMaxHour := cynic.EventJSONNew("www.google.com", 23*60*60+60*59+59) // 23:59:59
+	eventHour := cynic.EventNew(1 * hour)
+	eventMaxHour := cynic.EventNew(23*hour + 59*minute + 59*second) // 23:59:59
 
-	event := cynic.EventJSONNew("www.google.com", 3*60*60+33*60+33)
+	event := cynic.EventNew(3*hour + 33*minute + 33*second)
 
 	events := [...]cynic.Event{
 		eventSecs,
@@ -59,16 +58,18 @@ func TestAdd(t *testing.T) {
 		event,
 	}
 
-	for _, el := range events {
-		planner.Add(&el)
+	for i := 0; i < len(events); i++ {
+		planner.Add(&events[i])
 	}
+
+	assert(t, len(events) == planner.Len())
 }
 
 func TestTickAll(t *testing.T) {
-	// take a time and assert that the timer is not expired, up to
-	// the n-1 time interval. Test that it is finally expired
-	// after the final time interval.
 	setupAddTickTest := func(givenTime int) func(t *testing.T) {
+		// take a time and assert that the timer is not expired, up to
+		// the n-1 time interval. Test that it is finally expired
+		// after the final time interval.
 		return func(t *testing.T) {
 			isExpired := false
 
@@ -150,7 +151,7 @@ func TestAddRepeatedEvent(t *testing.T) {
 	var time int
 	time = 10
 
-	event := cynic.EventJSONNew("www.google.com", time)
+	event := cynic.EventNew(time)
 	event.Repeat(true)
 	event.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
@@ -171,7 +172,7 @@ func TestAddRepeatedEvent(t *testing.T) {
 func TestAddTickThenAddAgain(t *testing.T) {
 	var s1, s2 int
 	planner := cynic.PlannerNew()
-	event := cynic.EventJSONNew("www.google.com", 10)
+	event := cynic.EventNew(10)
 	event.AddHook(
 		func(_ *cynic.HookParameters) (bool, interface{}) {
 			s1 = 1
@@ -186,7 +187,7 @@ func TestAddTickThenAddAgain(t *testing.T) {
 
 	assert(t, s1 == 0 && s2 == 0)
 
-	nextEvent := cynic.EventJSONNew("www.HAHAHA.com", 10)
+	nextEvent := cynic.EventNew(10)
 	nextEvent.AddHook(
 		func(_ *cynic.HookParameters) (bool, interface{}) {
 			s2 = 1
@@ -214,7 +215,7 @@ func TestEventOffset(t *testing.T) {
 	ran := false
 
 	s := cynic.EventNew(secs)
-	s.Offset(offsetTime)
+	s.SetOffset(offsetTime)
 	s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		ran = true
 		return false, 0
@@ -222,7 +223,7 @@ func TestEventOffset(t *testing.T) {
 
 	planner := cynic.PlannerNew()
 	planner.Add(&s)
-	planner.Tick() // place cursor
+	planner.Tick()
 
 	assert(t, !ran)
 
@@ -238,30 +239,46 @@ func TestEventOffset(t *testing.T) {
 }
 
 func TestEventImmediate(t *testing.T) {
-	// TODO: Test with immediate and a long long time afterwards, eg:
-	//   immediate + 5 hours in the future
-	//   immediate + 3 days in the future
-	var count int
-	time := 12
-	s := cynic.EventNew(time)
-	s.Immediate(true)
-	s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
-		count++
-		return false, 0
-	})
+	setup := func(givenTime int) func(t *testing.T) {
+		return func(t *testing.T) {
+			var count int
+			time := givenTime
+			s := cynic.EventNew(time)
+			s.Immediate(true)
+			s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+				count++
+				return false, 0
+			})
 
-	w := cynic.PlannerNew()
-	w.Add(&s)
+			w := cynic.PlannerNew()
+			w.Add(&s)
 
-	w.Tick()
-	w.Tick()
-	assert(t, count == 1)
+			w.Tick()
+			w.Tick()
+			assert(t, count == 1)
 
-	for i := 0; i < time*10; i++ {
-		w.Tick()
+			for i := 0; i < time*10; i++ {
+				w.Tick()
+			}
+
+			assert(t, count == 1)
+		}
 	}
 
-	assert(t, count == 1)
+	type testCase struct {
+		name string
+		time int
+	}
+
+	testCases := [...]testCase{
+		{"3 seconds", 3 * second},
+		{"3 hours", 3 * hour},
+		{"3 days", 3 * day},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, setup(tc.time))
+	}
 }
 
 func TestEventImmediateWithRepeat(t *testing.T) {
@@ -372,7 +389,7 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 	ser := cynic.EventNew(1)
 	label := "simple-repeated-rotation-x3"
 
-	ser.Label = &label
+	ser.Label = label
 	ser.Repeat(true)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
@@ -669,7 +686,7 @@ func TestImmediateWithOffset(t *testing.T) {
 
 	event := cynic.EventNew(eventTime)
 	event.Immediate(true)
-	event.Offset(offset)
+	event.SetOffset(offset)
 	event.Repeat(true)
 	event.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
