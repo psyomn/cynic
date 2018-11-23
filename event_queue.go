@@ -60,7 +60,7 @@ func (pq *EventQueue) PeekTimestamp() (int64, bool) {
 
 	old := *pq
 	item := old[0]
-	return item.absExpiry, true
+	return int64(item.priority), true
 }
 
 // PeekID returns the id of the event at root
