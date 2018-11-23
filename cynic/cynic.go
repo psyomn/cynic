@@ -175,7 +175,7 @@ func main() {
 	statusServers = append(statusServers, statusServer)
 
 	for i := 0; i < len(events); i++ {
-		events[i].DataRepo(&statusServer)
+		events[i].SetDataRepo(&statusServer)
 	}
 
 	alerter := cynic.AlerterNew(20, exampleAlerter)
