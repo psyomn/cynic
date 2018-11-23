@@ -151,7 +151,7 @@ func TestAddRepeatedEvent(t *testing.T) {
 	var time int
 	time = 10
 
-	event := cynic.EventNew(time) // "www.google.com",
+	event := cynic.EventNew(time)
 	event.Repeat(true)
 	event.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		count++
@@ -172,7 +172,7 @@ func TestAddRepeatedEvent(t *testing.T) {
 func TestAddTickThenAddAgain(t *testing.T) {
 	var s1, s2 int
 	planner := cynic.PlannerNew()
-	event := cynic.EventNew(10) // "www.google.com",
+	event := cynic.EventNew(10)
 	event.AddHook(
 		func(_ *cynic.HookParameters) (bool, interface{}) {
 			s1 = 1
@@ -187,7 +187,7 @@ func TestAddTickThenAddAgain(t *testing.T) {
 
 	assert(t, s1 == 0 && s2 == 0)
 
-	nextEvent := cynic.EventNew(10) // "www.HAHAHA.com",
+	nextEvent := cynic.EventNew(10)
 	nextEvent.AddHook(
 		func(_ *cynic.HookParameters) (bool, interface{}) {
 			s2 = 1
@@ -223,7 +223,7 @@ func TestEventOffset(t *testing.T) {
 
 	planner := cynic.PlannerNew()
 	planner.Add(&s)
-	planner.Tick() // place cursor
+	planner.Tick()
 
 	assert(t, !ran)
 
@@ -239,30 +239,46 @@ func TestEventOffset(t *testing.T) {
 }
 
 func TestEventImmediate(t *testing.T) {
-	// TODO: Test with immediate and a long long time afterwards, eg:
-	//   immediate + 5 hours in the future
-	//   immediate + 3 days in the future
-	var count int
-	time := 12
-	s := cynic.EventNew(time)
-	s.Immediate(true)
-	s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
-		count++
-		return false, 0
-	})
+	setup := func(givenTime int) func(t *testing.T) {
+		return func(t *testing.T) {
+			var count int
+			time := givenTime
+			s := cynic.EventNew(time)
+			s.Immediate(true)
+			s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+				count++
+				return false, 0
+			})
 
-	w := cynic.PlannerNew()
-	w.Add(&s)
+			w := cynic.PlannerNew()
+			w.Add(&s)
 
-	w.Tick()
-	w.Tick()
-	assert(t, count == 1)
+			w.Tick()
+			w.Tick()
+			assert(t, count == 1)
 
-	for i := 0; i < time*10; i++ {
-		w.Tick()
+			for i := 0; i < time*10; i++ {
+				w.Tick()
+			}
+
+			assert(t, count == 1)
+		}
 	}
 
-	assert(t, count == 1)
+	type testCase struct {
+		name string
+		time int
+	}
+
+	testCases := [...]testCase{
+		{"3 seconds", 3 * second},
+		{"3 hours", 3 * hour},
+		{"3 days", 3 * day},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, setup(tc.time))
+	}
 }
 
 func TestEventImmediateWithRepeat(t *testing.T) {
