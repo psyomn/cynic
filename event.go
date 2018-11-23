@@ -78,8 +78,6 @@ type Event struct {
 
 	repo *StatusServer
 
-	absExpiry int64
-
 	index    int
 	priority int
 	deleted  bool
@@ -203,13 +201,12 @@ func (s *Event) Execute() {
 // SetAbsExpiry sets the timestamp that the event is suposed to
 // expire on.
 func (s *Event) SetAbsExpiry(ts int64) {
-	s.absExpiry = ts
 	s.priority = int(ts)
 }
 
 // GetAbsExpiry gets the timestamp
 func (s *Event) GetAbsExpiry() int64 {
-	return s.absExpiry
+	return int64(s.priority)
 }
 
 func (s *Event) String() string {
