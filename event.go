@@ -117,9 +117,14 @@ func (s *Event) IsImmediate() bool {
 	return s.immediate
 }
 
-// Offset sets the time before the event starts ticking
+// SetOffset sets the time before the event starts ticking
 func (s *Event) SetOffset(offset int) {
 	s.offset = offset
+}
+
+// GetOffset returns the offset time of the event
+func (s *Event) GetOffset() int {
+	return s.offset
 }
 
 // Repeat makes the event repeatable
@@ -161,8 +166,8 @@ func (s *Event) UniqStr() string {
 	return ret
 }
 
-// DataRepo sets where the data processed should be stored in
-func (s *Event) DataRepo(repo *StatusServer) {
+// SetDataRepo sets where the data processed should be stored in
+func (s *Event) SetDataRepo(repo *StatusServer) {
 	s.repo = repo
 }
 
@@ -177,31 +182,6 @@ func (s *Event) Execute() {
 
 		s.maybeAlert(ok, result)
 	}
-}
-
-func (s *Event) maybeAlert(shouldAlert bool, result interface{}) {
-	if !shouldAlert || s.planner == nil || s.planner.alerter == nil {
-		return
-	}
-
-	alerter := s.planner.alerter
-
-	hostVal, err := os.Hostname()
-	if err != nil {
-		// TODO func init() might be a better candidate for this
-		hostVal = "badhost"
-	}
-
-	alerter.Ch <- AlertMessage{
-		Response:      result,
-		Now:           time.Now().Format(time.RFC3339),
-		CynicHostname: hostVal,
-	}
-}
-
-// GetOffset returns the offset time of the event
-func (s *Event) GetOffset() int {
-	return s.offset
 }
 
 // SetAbsExpiry sets the timestamp that the event is suposed to
@@ -239,11 +219,31 @@ func (s *Event) IsDeleted() bool {
 	return s.deleted
 }
 
+// SetExtra state you may want passed to hooks
+func (s *Event) SetExtra(extra interface{}) {
+	s.extra = extra
+}
+
 func (s *Event) setPlanner(planner *Planner) {
 	s.planner = planner
 }
 
-// SetExtra state you may want passed to hooks
-func (s *Event) SetExtra(extra interface{}) {
-	s.extra = extra
+func (s *Event) maybeAlert(shouldAlert bool, result interface{}) {
+	if !shouldAlert || s.planner == nil || s.planner.alerter == nil {
+		return
+	}
+
+	alerter := s.planner.alerter
+
+	hostVal, err := os.Hostname()
+	if err != nil {
+		// TODO func init() might be a better candidate for this
+		hostVal = "badhost"
+	}
+
+	alerter.Ch <- AlertMessage{
+		Response:      result,
+		Now:           time.Now().Format(time.RFC3339),
+		CynicHostname: hostVal,
+	}
 }

@@ -85,7 +85,7 @@ func TestEventWithQueryAndRepo(t *testing.T) {
 		http.Get(ts.URL)
 		return false, 0
 	})
-	ser.DataRepo(&repo)
+	ser.SetDataRepo(&repo)
 	ser.Execute()
 
 	assert(t, ran)
@@ -105,7 +105,7 @@ func TestEventWithQueryNoRepo(t *testing.T) {
 		http.Get(ts.URL)
 		return false, 0
 	})
-	ser.DataRepo(&repo)
+	ser.SetDataRepo(&repo)
 	ser.Execute()
 
 	assert(t, ran)
