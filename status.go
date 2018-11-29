@@ -128,12 +128,14 @@ func (s *StatusServer) makeResponse(w http.ResponseWriter, _ *http.Request) {
 	})
 
 	jsonEnc, err := json.Marshal(tmp)
+	var ret string
 
 	if err != nil {
-		// TODO maybe there's something cleaner I can do here
 		log.Println("problem generating json for status endpoint: ", err)
-		fmt.Fprintf(w, "{\"error\":\"could not format status data\"}")
+		ret = "{\"error\":\"could not format status data\"}"
 	} else {
-		fmt.Fprintf(w, string(jsonEnc))
+		ret = string(jsonEnc[:])
 	}
+
+	fmt.Fprintf(w, ret)
 }
