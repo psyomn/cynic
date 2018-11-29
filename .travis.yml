@@ -2,7 +2,7 @@ language: go
 go: "1.10.3"
 script:
   - go get -u golang.org/x/lint/golint
-  - go get -u honnef.co/go/tools/cmd/unused
+  - go get -u honnef.co/go/tools/...
   - go get -t ./...
   - make
 notifications:
