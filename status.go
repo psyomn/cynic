@@ -120,8 +120,7 @@ func (s *StatusServer) GetPort() int {
 }
 
 func (s *StatusServer) makeResponse(w http.ResponseWriter, _ *http.Request) {
-	var tmp map[string]interface{}
-	tmp = make(map[string]interface{})
+	tmp := make(map[string]interface{})
 	s.contractResults.Range(func(k interface{}, v interface{}) bool {
 		keyStr, _ := k.(string)
 		tmp[keyStr] = v
