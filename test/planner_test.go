@@ -148,8 +148,7 @@ func TestTickAll(t *testing.T) {
 
 func TestAddRepeatedEvent(t *testing.T) {
 	var count int
-	var time int
-	time = 10
+	time := 10
 
 	event := cynic.EventNew(time)
 	event.Repeat(true)
@@ -561,8 +560,8 @@ func TestPlannerDelete(t *testing.T) {
 
 	// Make sure that the deleted event does not ever execute,
 	// since marked for deletion before tick
-	assert(t, expire1 == false)
-	assert(t, expire2 == true)
+	assert(t, !expire1)
+	assert(t, expire2)
 }
 
 func TestSecondsApart(t *testing.T) {
