@@ -57,7 +57,7 @@ test-bench:
 # https://github.com/dominikh/go-tools#tools
 test-unused:
 	@echo -- run unused code checker
-	unused ./...
+	megacheck ./...
 .PHONY: test-unused
 
 .PHONY:test-all
