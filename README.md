@@ -5,3 +5,5 @@ Simple monitoring, contract and heuristic tool. Dependency free!
 ## Usage
 
 For detailed usage take a look at `cynic/cynic.go`.
+
+For usage of the storage dumper look at `cynic-store/main.go`.
