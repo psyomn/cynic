@@ -46,7 +46,7 @@ const (
 
 	// DefaultStatusEndpoint is where the default status json can
 	// be retrieved from
-	DefaultStatusEndpoint = "/status"
+	DefaultStatusEndpoint = "/status/"
 )
 
 // StatusServerNew creates a new status server for cynic
@@ -120,7 +120,9 @@ func (s *StatusCache) GetPort() int {
 	return port
 }
 
-func (s *StatusCache) makeResponse(w http.ResponseWriter, _ *http.Request) {
+func (s *StatusCache) makeResponse(w http.ResponseWriter, req *http.Request) {
+	query := req.URL.Path[len(s.root):]
+
 	tmp := make(map[string]interface{})
 	s.contractResults.Range(func(k interface{}, v interface{}) bool {
 		keyStr, _ := k.(string)
@@ -128,7 +130,14 @@ func (s *StatusCache) makeResponse(w http.ResponseWriter, _ *http.Request) {
 		return true
 	})
 
-	jsonEnc, err := json.Marshal(tmp)
+	var toEncode interface{}
+	if len(query) > 0 {
+		toEncode = tmp[query]
+	} else {
+		toEncode = tmp
+	}
+
+	jsonEnc, err := json.Marshal(toEncode)
 	var ret string
 
 	if err != nil {
