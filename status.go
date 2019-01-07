@@ -147,5 +147,5 @@ func (s *StatusCache) makeResponse(w http.ResponseWriter, req *http.Request) {
 		ret = string(jsonEnc[:])
 	}
 
-	fmt.Fprintf(w, ret)
+	fmt.Fprintf(w, "%s", ret)
 }
