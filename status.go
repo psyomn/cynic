@@ -28,12 +28,13 @@ import (
 	"time"
 )
 
-// StatusServer is a server that will serve information about all the
-// events cynic will be observing
-type StatusServer struct {
+// StatusCache stores any sort of information that is possibly
+// retrieved or calculated by events. A server can be started to
+// retrieve information in the map in json format.
+type StatusCache struct {
+	server          *http.Server
 	contractResults *sync.Map
 	listener        net.Listener
-	server          *http.Server
 	alerter         *time.Ticker
 	root            string
 }
@@ -45,11 +46,11 @@ const (
 
 	// DefaultStatusEndpoint is where the default status json can
 	// be retrieved from
-	DefaultStatusEndpoint = "/status"
+	DefaultStatusEndpoint = "/status/"
 )
 
 // StatusServerNew creates a new status server for cynic
-func StatusServerNew(port, root string) StatusServer {
+func StatusServerNew(port, root string) StatusCache {
 	server := &http.Server{
 		Addr:           ":" + port,
 		ReadTimeout:    10 * time.Second,
@@ -62,7 +63,7 @@ func StatusServerNew(port, root string) StatusServer {
 		panic(err)
 	}
 
-	return StatusServer{
+	return StatusCache{
 		contractResults: &sync.Map{},
 		listener:        listener,
 		server:          server,
@@ -72,7 +73,7 @@ func StatusServerNew(port, root string) StatusServer {
 }
 
 // Start stats a new server. Should be running in the background.
-func (s *StatusServer) Start() {
+func (s *StatusCache) Start() {
 	http.HandleFunc(s.root, s.makeResponse)
 	err := s.server.Serve(s.listener)
 
@@ -82,7 +83,7 @@ func (s *StatusServer) Start() {
 }
 
 // Stop gracefully shuts down the server
-func (s *StatusServer) Stop() {
+func (s *StatusCache) Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -94,17 +95,17 @@ func (s *StatusServer) Stop() {
 
 // Update updates the information about all the contracts that are
 // running on different endpoints
-func (s *StatusServer) Update(key string, value interface{}) {
+func (s *StatusCache) Update(key string, value interface{}) {
 	s.contractResults.Store(key, value)
 }
 
 // Delete removes an entry from the sync map
-func (s *StatusServer) Delete(key string) {
+func (s *StatusCache) Delete(key string) {
 	s.contractResults.Delete(key)
 }
 
 // NumEntries returns the number of entries in the map
-func (s *StatusServer) NumEntries() (count int) {
+func (s *StatusCache) NumEntries() (count int) {
 	s.contractResults.Range(func(_, _ interface{}) bool {
 		count++
 		return true
@@ -114,12 +115,14 @@ func (s *StatusServer) NumEntries() (count int) {
 
 // GetPort this will return the port where the server was
 // started. This is useful if you assign port 0 when initializing.
-func (s *StatusServer) GetPort() int {
+func (s *StatusCache) GetPort() int {
 	port := s.listener.Addr().(*net.TCPAddr).Port
 	return port
 }
 
-func (s *StatusServer) makeResponse(w http.ResponseWriter, _ *http.Request) {
+func (s *StatusCache) makeResponse(w http.ResponseWriter, req *http.Request) {
+	query := req.URL.Path[len(s.root):]
+
 	tmp := make(map[string]interface{})
 	s.contractResults.Range(func(k interface{}, v interface{}) bool {
 		keyStr, _ := k.(string)
@@ -127,7 +130,14 @@ func (s *StatusServer) makeResponse(w http.ResponseWriter, _ *http.Request) {
 		return true
 	})
 
-	jsonEnc, err := json.Marshal(tmp)
+	var toEncode interface{}
+	if len(query) > 0 {
+		toEncode = tmp[query]
+	} else {
+		toEncode = tmp
+	}
+
+	jsonEnc, err := json.Marshal(toEncode)
 	var ret string
 
 	if err != nil {
@@ -137,5 +147,5 @@ func (s *StatusServer) makeResponse(w http.ResponseWriter, _ *http.Request) {
 		ret = string(jsonEnc[:])
 	}
 
-	fmt.Fprintf(w, ret)
+	fmt.Fprintf(w, "%s", ret)
 }

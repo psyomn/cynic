@@ -50,7 +50,7 @@ type HookParameters struct {
 
 	// Status exposes the status repo. It acts as a repository for
 	// hooks to store information after execution.
-	Status *StatusServer
+	Status *StatusCache
 
 	// Extra is meant to be used by the user for any extra state
 	// that needs to be passed to the hooks.
@@ -76,7 +76,7 @@ type Event struct {
 	Label     string
 	planner   *Planner
 
-	repo *StatusServer
+	repo *StatusCache
 
 	index    int
 	priority int
@@ -181,7 +181,7 @@ func (s *Event) UniqStr() string {
 }
 
 // SetDataRepo sets where the data processed should be stored in
-func (s *Event) SetDataRepo(repo *StatusServer) {
+func (s *Event) SetDataRepo(repo *StatusCache) {
 	s.repo = repo
 }
 

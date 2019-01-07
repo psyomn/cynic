@@ -37,9 +37,9 @@ const (
 // Session is the configuration a cynic instance requires to start
 // running and working
 type Session struct {
-	Events        []Event
-	StatusServers []StatusServer
-	Alerter       *Alerter
+	Events      []Event
+	StatusCache *StatusCache
+	Alerter     *Alerter
 }
 
 // Start starts a cynic instance, with any provided hooks.
@@ -66,10 +66,8 @@ func Start(session Session) {
 	}()
 	defer ticker.Stop()
 
-	for _, statusSer := range session.StatusServers {
-		statusSer.Start()
-		defer statusSer.Stop()
-	}
+	session.StatusCache.Start()
+	defer session.StatusCache.Stop()
 
 	wg.Wait()
 }

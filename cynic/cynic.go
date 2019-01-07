@@ -19,6 +19,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -105,12 +106,19 @@ func simpleGet(url string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	str, err := ioutil.ReadAll(resp.Body)
+	bytesResp, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 
-	return string(str), nil
+	str := string(bytesResp)
+
+	if resp.StatusCode != 200 {
+		log.Println(resp.StatusCode, " ", http.StatusText(resp.StatusCode))
+		return "", errors.New(str)
+	}
+
+	return str, nil
 }
 
 // You need to respect this interface so that you can bind hooks to
@@ -125,11 +133,18 @@ func exampleHook(params *cynic.HookParameters) (alert bool, data interface{}) {
 
 	if err != nil {
 		message = err.Error()
-	} else {
-		message = resp
+		params.Status.Update("exampleHook", message)
+		return false, result{
+			Alert:   true,
+			Message: message,
+		}
 	}
 
-	params.Status.Update("exampleHook", message)
+	message = resp
+
+	var target interface{}
+	json.Unmarshal([]byte(message), &target)
+	params.Status.Update("exampleHook", target)
 
 	return false, result{
 		Alert:   true,
@@ -168,11 +183,19 @@ func finalHook(params *cynic.HookParameters) (alert bool, data interface{}) {
 	resp, err := simpleGet(url)
 	if err != nil {
 		message = err.Error()
-	} else {
-		message = resp
+		params.Status.Update("finalHook", message)
+
+		return (time.Now().Unix()%2 == 0), result{
+			Alert:   false,
+			Message: message,
+		}
 	}
 
-	params.Status.Update("finalHook", message)
+	message = resp
+
+	var target interface{}
+	json.Unmarshal([]byte(message), &target)
+	params.Status.Update("finalHook", target)
 
 	return (time.Now().Unix()%2 == 0), result{
 		Alert:   false,
@@ -212,9 +235,7 @@ func main() {
 	events[2].AddHook(finalHook)
 	events[2].Repeat(true)
 
-	var statusServers []cynic.StatusServer
 	statusServer := cynic.StatusServerNew(statusPort, cynic.DefaultStatusEndpoint)
-	statusServers = append(statusServers, statusServer)
 
 	for i := 0; i < len(events); i++ {
 		events[i].SetDataRepo(&statusServer)
@@ -222,9 +243,9 @@ func main() {
 
 	alerter := cynic.AlerterNew(20, exampleAlerter)
 	session := cynic.Session{
-		Events:        events,
-		Alerter:       &alerter,
-		StatusServers: statusServers,
+		Events:      events,
+		Alerter:     &alerter,
+		StatusCache: &statusServer,
 	}
 
 	var wg sync.WaitGroup
