@@ -37,9 +37,10 @@ const (
 // Session is the configuration a cynic instance requires to start
 // running and working
 type Session struct {
-	Events      []Event
-	StatusCache *StatusCache
-	Alerter     *Alerter
+	Events         []Event
+	StatusCache    *StatusCache
+	Alerter        *Alerter
+	SnapshotConfig *SnapshotConfig
 }
 
 // Start starts a cynic instance, with any provided hooks.
@@ -52,6 +53,10 @@ func Start(session Session) {
 
 	for i := 0; i < len(session.Events); i++ {
 		planner.Add(&session.Events[i])
+	}
+
+	if session.SnapshotConfig != nil {
+		session.StatusCache.WithSnapshots(session.SnapshotConfig)
 	}
 
 	ticker := time.NewTicker(time.Second)

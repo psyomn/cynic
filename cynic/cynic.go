@@ -246,6 +246,11 @@ func main() {
 		Events:      events,
 		Alerter:     &alerter,
 		StatusCache: &statusServer,
+		SnapshotConfig: &cynic.SnapshotConfig{
+			Enabled:   true,
+			Interval:  time.Minute,
+			DumpEvery: time.Hour,
+		},
 	}
 
 	var wg sync.WaitGroup
