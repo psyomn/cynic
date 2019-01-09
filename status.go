@@ -24,6 +24,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"path"
 	"sync"
 	"time"
 )
@@ -38,7 +39,7 @@ type StatusCache struct {
 	alerter         *time.Ticker
 	root            string
 
-	snapshot       *snapshotStore
+	snapshot       *SnapshotStore
 	snapshotConfig *SnapshotConfig
 }
 
@@ -80,13 +81,7 @@ func StatusServerNew(port, root string) StatusCache {
 // WithSnapshots will make the cache dump snapshots of the data with
 // given intervals when the service starts
 func (s *StatusCache) WithSnapshots(config *SnapshotConfig) {
-	snps := make([]*snapshot, 0)
-	store := snapshotStore{
-		Magic:     storeMagic,
-		Version:   storeVersion,
-		Snapshots: snps,
-	}
-
+	store := snapshotStoreNew()
 	s.snapshotConfig = config
 	s.snapshot = &store
 }
@@ -212,8 +207,11 @@ func (s *StatusCache) dump() {
 	strDate := time.Now().Format(time.RFC3339)
 	filename := fmt.Sprintf("%s.%v.cynic", strDate, s.snapshot.Version)
 
-	error := s.snapshot.encodeToFile(filename)
+	dumpPath := path.Join(s.snapshotConfig.Path, filename)
+	error := s.snapshot.encodeToFile(dumpPath)
 	if error != nil {
 		log.Println("problem encoding and dumping to file: ", error)
 	}
+
+	s.snapshot.clear()
 }

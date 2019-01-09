@@ -21,8 +21,11 @@ package cynic
 import (
 	"bytes"
 	"encoding/gob"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -36,6 +39,7 @@ type SnapshotConfig struct {
 	Enabled   bool
 	Interval  time.Duration
 	DumpEvery time.Duration
+	Path      string
 }
 
 // Snapshot is a copy of the state of the map currently being
@@ -46,26 +50,49 @@ type snapshot struct {
 }
 
 // SnapshotStore is storage of states of the map at different times
-type snapshotStore struct {
+type SnapshotStore struct {
 	Magic     uint64
 	Version   uint8 // storage version
 	Snapshots []*snapshot
 }
 
-func snapshotStoreNew() snapshotStore {
+var snapshotMutex sync.Mutex
+
+// String stringifies the contents of SnapshotStore
+func (s *SnapshotStore) String() string {
+	snapshotMutex.Lock()
+	defer snapshotMutex.Unlock()
+
+	var build strings.Builder
+
+	versionDescription := fmt.Sprintf("version: %d\n", s.Version)
+	build.WriteString(versionDescription)
+
+	for _, snap := range s.Snapshots {
+		row := fmt.Sprintf("%d:%s\n", snap.Timestamp, snap.Data)
+		build.WriteString(row)
+	}
+
+	return build.String()
+}
+
+func snapshotStoreNew() SnapshotStore {
 	snps := make([]*snapshot, 0)
-	return snapshotStore{
+	return SnapshotStore{
 		Magic:     storeMagic,
 		Version:   storeVersion,
 		Snapshots: snps,
 	}
 }
 
-func (s *snapshotStore) add(snapshot *snapshot) {
+func (s *SnapshotStore) add(snapshot *snapshot) {
+	snapshotMutex.Lock()
+	defer snapshotMutex.Unlock()
+
 	s.Snapshots = append(s.Snapshots, snapshot)
 }
 
-func (s *snapshotStore) encode() (bytes.Buffer, error) {
+func (s *SnapshotStore) encode() (bytes.Buffer, error) {
 	var buffer bytes.Buffer
 	enc := gob.NewEncoder(&buffer)
 
@@ -77,7 +104,10 @@ func (s *snapshotStore) encode() (bytes.Buffer, error) {
 	return buffer, err
 }
 
-func (s *snapshotStore) encodeToFile(path string) error {
+func (s *SnapshotStore) encodeToFile(path string) error {
+	snapshotMutex.Lock()
+	defer snapshotMutex.Unlock()
+
 	buffer, err := s.encode()
 	if err != nil {
 		log.Println(err)
@@ -87,7 +117,10 @@ func (s *snapshotStore) encodeToFile(path string) error {
 	return ioutil.WriteFile(path, buffer.Bytes(), 0644)
 }
 
-func (s *snapshotStore) clear() {
+func (s *SnapshotStore) clear() {
+	snapshotMutex.Lock()
+	defer snapshotMutex.Unlock()
+
 	snp := make([]*snapshot, 0)
 	s.Snapshots = snp
 }
