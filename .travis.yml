@@ -1,5 +1,7 @@
 language: go
-go: "1.10.3"
+go:
+  - stable
+  - master
 script:
   - go get -u golang.org/x/lint/golint
   - go get -u honnef.co/go/tools/...

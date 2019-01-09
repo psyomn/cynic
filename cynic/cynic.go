@@ -33,17 +33,19 @@ import (
 )
 
 var (
-	statusPort = cynic.StatusPort
-	slackHook  string
-	version    = false
-	help       = false
-	logPath    string
+	statusPort   = cynic.StatusPort
+	slackHook    string
+	version      = false
+	help         = false
+	logPath      string
+	snapshotPath string
 )
 
 func initFlag() {
 	// General
 	flag.StringVar(&statusPort, "status-port", statusPort, "http status server port")
 	flag.StringVar(&logPath, "log", logPath, "path to log file")
+	flag.StringVar(&snapshotPath, "snapshot-path", snapshotPath, "path to snapshot directory")
 
 	// Alerts
 	flag.StringVar(&slackHook, "slack-hook", slackHook, "set slack hook url")
@@ -246,6 +248,12 @@ func main() {
 		Events:      events,
 		Alerter:     &alerter,
 		StatusCache: &statusServer,
+		SnapshotConfig: &cynic.SnapshotConfig{
+			Enabled:   true,
+			Interval:  time.Minute,
+			DumpEvery: time.Minute * 3,
+			Path:      snapshotPath,
+		},
 	}
 
 	var wg sync.WaitGroup

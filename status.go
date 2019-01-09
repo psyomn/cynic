@@ -24,6 +24,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"path"
 	"sync"
 	"time"
 )
@@ -37,6 +38,9 @@ type StatusCache struct {
 	listener        net.Listener
 	alerter         *time.Ticker
 	root            string
+
+	snapshot       *SnapshotStore
+	snapshotConfig *SnapshotConfig
 }
 
 const (
@@ -69,11 +73,40 @@ func StatusServerNew(port, root string) StatusCache {
 		server:          server,
 		alerter:         nil,
 		root:            root,
+		snapshot:        nil,
+		snapshotConfig:  nil,
 	}
 }
 
-// Start stats a new server. Should be running in the background.
+// WithSnapshots will make the cache dump snapshots of the data with
+// given intervals when the service starts
+func (s *StatusCache) WithSnapshots(config *SnapshotConfig) {
+	store := snapshotStoreNew()
+	s.snapshotConfig = config
+	s.snapshot = &store
+}
+
+// Start starts all services associated with status caches. This
+// includes the web interface if enabled, and the dumping of statuses
+// in files.
 func (s *StatusCache) Start() {
+	if s.snapshotConfig != nil {
+		tickerSnap := time.NewTicker(s.snapshotConfig.Interval)
+		go func() {
+			for range tickerSnap.C {
+				s.snap()
+			}
+		}()
+
+		tickerDump := time.NewTicker(s.snapshotConfig.DumpEvery)
+		go func() {
+			for range tickerDump.C {
+				s.dump()
+			}
+		}()
+	}
+
+	// HTTP endpoint
 	http.HandleFunc(s.root, s.makeResponse)
 	err := s.server.Serve(s.listener)
 
@@ -120,9 +153,24 @@ func (s *StatusCache) GetPort() int {
 	return port
 }
 
+// Dump will dump the contents of the map into a snapshot file.
 func (s *StatusCache) makeResponse(w http.ResponseWriter, req *http.Request) {
 	query := req.URL.Path[len(s.root):]
 
+	jsonBuff, err := s.statusCacheToJSON(query)
+
+	var ret string
+	if err != nil {
+		log.Println("problem generating json for status endpoint: ", err)
+		ret = "{\"error\":\"could not format status data\"}"
+	} else {
+		ret = string(jsonBuff[:])
+	}
+
+	fmt.Fprintf(w, "%s", ret)
+}
+
+func (s *StatusCache) statusCacheToJSON(query string) ([]byte, error) {
 	tmp := make(map[string]interface{})
 	s.contractResults.Range(func(k interface{}, v interface{}) bool {
 		keyStr, _ := k.(string)
@@ -138,14 +186,32 @@ func (s *StatusCache) makeResponse(w http.ResponseWriter, req *http.Request) {
 	}
 
 	jsonEnc, err := json.Marshal(toEncode)
-	var ret string
+	return jsonEnc, err
+}
 
+func (s *StatusCache) snap() {
+	data, err := s.statusCacheToJSON("")
 	if err != nil {
-		log.Println("problem generating json for status endpoint: ", err)
-		ret = "{\"error\":\"could not format status data\"}"
-	} else {
-		ret = string(jsonEnc[:])
+		log.Println("problem snapping map data")
+		return
 	}
 
-	fmt.Fprintf(w, "%s", ret)
+	snp := snapshot{
+		Timestamp: time.Now().Unix(),
+		Data:      string(data),
+	}
+	s.snapshot.add(&snp)
+}
+
+func (s *StatusCache) dump() {
+	strDate := time.Now().Format(time.RFC3339)
+	filename := fmt.Sprintf("%s.%v.cynic", strDate, s.snapshot.Version)
+
+	dumpPath := path.Join(s.snapshotConfig.Path, filename)
+	error := s.snapshot.encodeToFile(dumpPath)
+	if error != nil {
+		log.Println("problem encoding and dumping to file: ", error)
+	}
+
+	s.snapshot.clear()
 }
