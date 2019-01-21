@@ -36,7 +36,6 @@ const (
 
 // SnapshotConfig is the configuration for the snapshots to be taken
 type SnapshotConfig struct {
-	Enabled   bool
 	Interval  time.Duration
 	DumpEvery time.Duration
 	Path      string

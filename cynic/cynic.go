@@ -249,7 +249,6 @@ func main() {
 		Alerter:     &alerter,
 		StatusCache: &statusServer,
 		SnapshotConfig: &cynic.SnapshotConfig{
-			Enabled:   true,
 			Interval:  time.Minute,
 			DumpEvery: time.Minute * 3,
 			Path:      snapshotPath,
