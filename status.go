@@ -25,6 +25,7 @@ import (
 	"net"
 	"net/http"
 	"path"
+	"strings"
 	"sync"
 	"time"
 )
@@ -51,6 +52,9 @@ const (
 	// DefaultStatusEndpoint is where the default status json can
 	// be retrieved from
 	DefaultStatusEndpoint = "/status/"
+
+	defaultLinksEndpoint = "/links"
+	localhost            = "127.0.0.1"
 )
 
 // StatusServerNew creates a new status server for cynic
@@ -106,8 +110,8 @@ func (s *StatusCache) Start() {
 		}()
 	}
 
-	// HTTP endpoint
 	http.HandleFunc(s.root, s.makeResponse)
+	http.HandleFunc(defaultLinksEndpoint, s.makeLinks)
 	err := s.server.Serve(s.listener)
 
 	if err != http.ErrServerClosed {
@@ -168,6 +172,40 @@ func (s *StatusCache) makeResponse(w http.ResponseWriter, req *http.Request) {
 	}
 
 	fmt.Fprintf(w, "%s", ret)
+}
+
+func (s *StatusCache) makeLinks(w http.ResponseWriter, req *http.Request) {
+	var builder strings.Builder
+	builder.WriteString("<html><head></head><body><ul>")
+
+	if s.NumEntries() == 0 {
+		builder.WriteString("<h1>No links here yet.</h1>")
+		goto end
+	}
+
+	builder.WriteString("<h1>Links to services</h1>")
+	s.contractResults.Range(func(k interface{}, v interface{}) bool {
+		keyStr, _ := k.(string)
+
+		link := fmt.Sprintf(
+			"http://%v:%v/%v%v",
+			localhost,
+			StatusPort,
+			s.root,
+			keyStr,
+		)
+
+		atag := fmt.Sprintf(`<a href="%v" target="_blank">%v</a>`, link, keyStr)
+
+		builder.WriteString("<li>")
+		builder.WriteString(atag)
+		builder.WriteString("</li>")
+		return true
+	})
+
+end:
+	builder.WriteString("</body></html>")
+	w.Write([]byte(builder.String()))
 }
 
 func (s *StatusCache) statusCacheToJSON(query string) ([]byte, error) {
