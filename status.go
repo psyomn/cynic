@@ -54,7 +54,6 @@ const (
 	DefaultStatusEndpoint = "/status/"
 
 	defaultLinksEndpoint = "/links"
-	localhost            = "127.0.0.1"
 )
 
 // StatusServerNew creates a new status server for cynic
@@ -187,14 +186,7 @@ func (s *StatusCache) makeLinks(w http.ResponseWriter, req *http.Request) {
 	s.contractResults.Range(func(k interface{}, v interface{}) bool {
 		keyStr, _ := k.(string)
 
-		link := fmt.Sprintf(
-			"http://%v:%v/%v%v",
-			localhost,
-			StatusPort,
-			s.root,
-			keyStr,
-		)
-
+		link := fmt.Sprintf("%v%v", s.root, keyStr)
 		atag := fmt.Sprintf(`<a href="%v" target="_blank">%v</a>`, link, keyStr)
 
 		builder.WriteString("<li>")
