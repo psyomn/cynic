@@ -26,7 +26,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/psyomn/cynic"
@@ -255,8 +254,5 @@ func main() {
 		},
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
 	cynic.Start(session)
-	wg.Wait()
 }
