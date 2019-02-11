@@ -45,8 +45,10 @@ type Session struct {
 
 // Start starts a cynic instance, with any provided hooks.
 func Start(session Session) {
-	session.Alerter.Start()
-	defer session.Alerter.Stop()
+	if session.Alerter != nil {
+		session.Alerter.Start()
+		defer session.Alerter.Stop()
+	}
 
 	planner := PlannerNew()
 	planner.alerter = session.Alerter
@@ -71,8 +73,10 @@ func Start(session Session) {
 	}()
 	defer ticker.Stop()
 
-	session.StatusCache.Start()
-	defer session.StatusCache.Stop()
+	if session.StatusCache != nil {
+		session.StatusCache.Start()
+		defer session.StatusCache.Stop()
+	}
 
 	wg.Wait()
 }

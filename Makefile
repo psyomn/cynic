@@ -54,6 +54,11 @@ test-bench:
 	go test -v -bench=.
 .PHONY: test-bench
 
+examples:
+	@echo -- building examples
+	@cd examples && find *.go -exec go build {} \;
+.PHONY: examples
+
 # https://github.com/dominikh/go-tools#tools
 test-unused:
 	@echo -- run unused code checker
