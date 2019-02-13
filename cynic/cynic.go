@@ -33,6 +33,7 @@ import (
 
 var (
 	statusPort   = cynic.StatusPort
+	host         = "0.0.0.0"
 	slackHook    string
 	version      = false
 	help         = false
@@ -43,6 +44,7 @@ var (
 func initFlag() {
 	// General
 	flag.StringVar(&statusPort, "status-port", statusPort, "http status server port")
+	flag.StringVar(&host, "status-host", host, "host for the status host")
 	flag.StringVar(&logPath, "log", logPath, "path to log file")
 	flag.StringVar(&snapshotPath, "snapshot-path", snapshotPath, "path to snapshot directory")
 
@@ -236,7 +238,7 @@ func main() {
 	events[2].AddHook(finalHook)
 	events[2].Repeat(true)
 
-	statusServer := cynic.StatusServerNew(statusPort, cynic.DefaultStatusEndpoint)
+	statusServer := cynic.StatusServerNew(host, statusPort, cynic.DefaultStatusEndpoint)
 
 	for i := 0; i < len(events); i++ {
 		events[i].SetDataRepo(&statusServer)
