@@ -29,7 +29,7 @@ import (
 )
 
 func TestCRUD(t *testing.T) {
-	server := cynic.StatusServerNew("0", "TestCRUD")
+	server := cynic.StatusServerNew("", "0", "TestCRUD")
 
 	server.Update("hello", "kitty")
 	server.Update("goodbye", "human")
@@ -50,7 +50,7 @@ func TestCRUD(t *testing.T) {
 
 func TestRestEndpoint(t *testing.T) {
 	endpoint := "/testrestendpoint"
-	server := cynic.StatusServerNew("0", endpoint)
+	server := cynic.StatusServerNew("", "0", endpoint)
 
 	server.Update("hello", "kitty")
 	server.Update("whosagood", "doggo")

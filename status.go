@@ -57,9 +57,9 @@ const (
 )
 
 // StatusServerNew creates a new status server for cynic
-func StatusServerNew(port, root string) StatusCache {
+func StatusServerNew(host, port, root string) StatusCache {
 	server := &http.Server{
-		Addr:           ":" + port,
+		Addr:           host + ":" + port,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
