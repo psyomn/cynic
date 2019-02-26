@@ -1,5 +1,5 @@
 # Taken from github.com/RAttab/gonfork
-all: build verify test
+all: build verify test examples
 verify: vet lint
 test: test-cover test-race test-unused test-bench
 .PHONY: all verify test
