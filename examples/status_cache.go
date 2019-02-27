@@ -21,33 +21,32 @@ package main
 
 import (
 	"log"
-	// "time"
+	"time"
 
 	"github.com/psyomn/cynic"
 )
 
 func main() {
+	// you can open this in: http://localhost:9999/status
+	// also useful link: http://localhost:9999/links
+	status := cynic.StatusServerNew("", "9999", cynic.DefaultStatusEndpoint)
+
 	var events []cynic.Event
 	event := cynic.EventNew(1)
 	event.AddHook(func(params *cynic.HookParameters) (bool, interface{}) {
 		log.Println("tick")
-		if params.Status == nil {
-			log.Println("yep")
-		}
 
-		// params.Status.Update("hello", "there")
-		// params.Status.Update("stuff", map[string]interface{}{
-		// 	"timestamp": time.Now().Unix(),
-		// })
+		params.Status.Update("hello", "there")
+		params.Status.Update("stuff", map[string]interface{}{
+			"timestamp": time.Now().Unix(),
+		})
+
 		return false, 0
 	})
 	event.Repeat(true)
+	event.SetDataRepo(&status)
 
 	events = append(events, event)
-
-	// you can open this in: http://localhost:9999/status
-	// also useful link: http://localhost:9999/links
-	status := cynic.StatusServerNew("9999", cynic.DefaultStatusEndpoint)
 
 	session := cynic.Session{
 		Events:      events,

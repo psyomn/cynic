@@ -36,7 +36,7 @@ func main() {
 	})
 	event.Repeat(true)
 
-	statusCache := cynic.StatusServerNew("9999", cynic.DefaultStatusEndpoint)
+	statusCache := cynic.StatusServerNew("", "9999", cynic.DefaultStatusEndpoint)
 	event.SetDataRepo(&statusCache)
 
 	events = append(events, event)
