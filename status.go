@@ -20,6 +20,7 @@ package cynic
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -138,6 +139,17 @@ func (s *StatusCache) Update(key string, value interface{}) {
 // Delete removes an entry from the sync map
 func (s *StatusCache) Delete(key string) {
 	s.contractResults.Delete(key)
+}
+
+// Get gets the value inside the contract results
+func (s *StatusCache) Get(key string) (interface{}, error) {
+	value, ok := s.contractResults.Load(key)
+
+	if !ok {
+		return nil, errors.New("could not find required value")
+	}
+
+	return value, nil
 }
 
 // NumEntries returns the number of entries in the map

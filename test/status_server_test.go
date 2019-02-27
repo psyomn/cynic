@@ -20,10 +20,13 @@ package cynictesting
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/psyomn/cynic"
 )
@@ -34,6 +37,13 @@ func TestCRUD(t *testing.T) {
 	server.Update("hello", "kitty")
 	server.Update("goodbye", "human")
 	server.Update("blarrgh", "arggh")
+
+	getHello, _ := server.Get("hello")
+	assert(t, getHello.(string) == "kitty")
+	getGoodbye, _ := server.Get("goodbye")
+	assert(t, getGoodbye.(string) == "human")
+	getBlargh, _ := server.Get("blarrgh")
+	assert(t, getBlargh.(string) == "arggh")
 	assert(t, server.NumEntries() == 3)
 
 	server.Delete("blarrgh")
@@ -43,9 +53,58 @@ func TestCRUD(t *testing.T) {
 	assert(t, server.NumEntries() == 2)
 
 	server.Update("potato", "tomato")
+	getPotato, _ := server.Get("potato")
+	assert(t, getPotato.(string) == "tomato")
 	assert(t, server.NumEntries() == 3)
+
 	server.Update("potato", "AAARGH")
+	getPotato, _ = server.Get("potato")
 	assert(t, server.NumEntries() == 3)
+	assert(t, getPotato.(string) == "AAARGH")
+}
+
+func TestGetNonExistantKey(t *testing.T) {
+	status := cynic.StatusServerNew("", "0", "9999")
+	status.Update("somekey", "hassomething")
+
+	_, err := status.Get("somekey")
+	assert(t, err == nil)
+
+	_, err = status.Get("doesntexist")
+	assert(t, err != nil)
+}
+
+func TestConcurrentCRUD(t *testing.T) {
+	status := cynic.StatusServerNew("", "0", "9999")
+	var wg sync.WaitGroup
+	n := 100
+
+	status.Update("counter", 1)
+	status.Update("timestamp", time.Now().Unix())
+
+	for i := 0; i < n; i++ {
+		// writers
+
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			key := fmt.Sprintf("blargh-%d", index)
+			status.Update(key, index)
+		}(i)
+	}
+
+	for i := 0; i < n; i++ {
+		// readers
+
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			key := fmt.Sprintf("blargh-%d", index)
+			status.Get(key)
+		}(i)
+	}
+
+	wg.Wait()
 }
 
 func TestRestEndpoint(t *testing.T) {
