@@ -162,6 +162,8 @@ func (s *StatusCache) makeResponse(w http.ResponseWriter, req *http.Request) {
 
 	jsonBuff, err := s.statusCacheToJSON(query)
 
+	w.Header().Set("Content-Type", "application/json")
+
 	var ret string
 	if err != nil {
 		log.Println("problem generating json for status endpoint: ", err)
