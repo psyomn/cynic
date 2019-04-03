@@ -19,6 +19,7 @@ package cynictesting
 
 import (
 	"log"
+	"sync"
 	"testing"
 
 	"github.com/psyomn/cynic"
@@ -71,11 +72,17 @@ func TestTickAll(t *testing.T) {
 		// the n-1 time interval. Test that it is finally expired
 		// after the final time interval.
 		return func(t *testing.T) {
+			var wg sync.WaitGroup
+
 			isExpired := false
 
 			time := givenTime
 			event := cynic.EventNew(time)
+
+			wg.Add(1)
 			event.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+				defer wg.Done()
+
 				isExpired = true
 				return false, 0
 			})
@@ -94,6 +101,8 @@ func TestTickAll(t *testing.T) {
 			}
 
 			planner.Tick()
+			wg.Wait()
+
 			if !isExpired {
 				log.Println(planner)
 				log.Println(event)
@@ -147,12 +156,18 @@ func TestTickAll(t *testing.T) {
 }
 
 func TestAddRepeatedEvent(t *testing.T) {
+	var wg sync.WaitGroup
 	var count int
 	time := 10
+	n := 3
 
 	event := cynic.EventNew(time)
 	event.Repeat(true)
+	wg.Add(n)
+
 	event.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg.Done()
+
 		count++
 		return false, 0
 	})
@@ -160,20 +175,26 @@ func TestAddRepeatedEvent(t *testing.T) {
 	planner := cynic.PlannerNew()
 	planner.Add(&event)
 
-	n := 3
 	for i := 0; i < (time*n)+1; i++ {
 		planner.Tick()
 	}
 
+	wg.Wait()
 	assert(t, count == n)
 }
 
 func TestAddTickThenAddAgain(t *testing.T) {
 	var s1, s2 int
+	var wg1, wg2 sync.WaitGroup
+
 	planner := cynic.PlannerNew()
 	event := cynic.EventNew(10)
+
+	wg1.Add(1)
 	event.AddHook(
 		func(_ *cynic.HookParameters) (bool, interface{}) {
+			defer wg1.Done()
+
 			s1 = 1
 			return false, 0
 		})
@@ -187,8 +208,12 @@ func TestAddTickThenAddAgain(t *testing.T) {
 	assert(t, s1 == 0 && s2 == 0)
 
 	nextEvent := cynic.EventNew(10)
+
+	wg2.Add(1)
 	nextEvent.AddHook(
 		func(_ *cynic.HookParameters) (bool, interface{}) {
+			defer wg2.Done()
+
 			s2 = 1
 			return false, 0
 		})
@@ -199,23 +224,30 @@ func TestAddTickThenAddAgain(t *testing.T) {
 		planner.Tick()
 	}
 
+	wg1.Wait()
 	assert(t, s1 == 1 && s2 == 0)
 
 	for i := 0; i < 4; i++ {
 		planner.Tick()
 	}
 
+	wg2.Wait()
 	assert(t, s1 == 1 && s2 == 1)
 }
 
 func TestEventOffset(t *testing.T) {
+	var wg sync.WaitGroup
 	secs := 3
 	offsetTime := 2
 	ran := false
 
 	s := cynic.EventNew(secs)
 	s.SetOffset(offsetTime)
+
+	wg.Add(1)
 	s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg.Done()
+
 		ran = true
 		return false, 0
 	})
@@ -228,12 +260,14 @@ func TestEventOffset(t *testing.T) {
 
 	planner.Tick()
 	planner.Tick()
+
 	assert(t, !ran)
 
 	for i := 0; i < secs; i++ {
 		planner.Tick()
 	}
 
+	wg.Wait()
 	assert(t, ran)
 }
 
@@ -241,10 +275,15 @@ func TestEventImmediate(t *testing.T) {
 	setup := func(givenTime int) func(t *testing.T) {
 		return func(t *testing.T) {
 			var count int
+			var wg sync.WaitGroup
 			time := givenTime
 			s := cynic.EventNew(time)
+
 			s.Immediate(true)
+			wg.Add(1)
 			s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+				defer wg.Done()
+
 				count++
 				return false, 0
 			})
@@ -254,6 +293,7 @@ func TestEventImmediate(t *testing.T) {
 
 			w.Tick()
 			w.Tick()
+			wg.Wait()
 			assert(t, count == 1)
 
 			for i := 0; i < time*10; i++ {
@@ -281,13 +321,17 @@ func TestEventImmediate(t *testing.T) {
 }
 
 func TestEventImmediateWithRepeat(t *testing.T) {
+	var wg sync.WaitGroup
 	var count int
 	time := 12
 
 	s := cynic.EventNew(time)
 	s.Immediate(true)
 	s.Repeat(true)
+	wg.Add(1)
 	s.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg.Done()
+
 		count++
 		return false, 0
 	})
@@ -297,21 +341,27 @@ func TestEventImmediateWithRepeat(t *testing.T) {
 
 	w.Tick()
 	w.Tick()
-
+	wg.Wait()
 	assert(t, count == 1)
 
+	wg.Add(1) // due to repeat
 	for i := 0; i < time; i++ {
 		w.Tick()
 	}
 
+	wg.Wait()
 	assert(t, count == 2)
 }
 
 func TestAddHalfMinute(t *testing.T) {
+	var wg sync.WaitGroup
 	var count int
 
 	ser := cynic.EventNew(1)
+	wg.Add(1)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg.Done()
+
 		count++
 		return false, 0
 	})
@@ -329,14 +379,19 @@ func TestAddHalfMinute(t *testing.T) {
 
 	w.Tick()
 	w.Tick()
+	wg.Wait()
+
 	assert(t, count == 1)
 }
 
 func TestAddLastMinuteSecond(t *testing.T) {
 	var count int
+	var wg sync.WaitGroup
 
 	ser := cynic.EventNew(1)
+	wg.Add(1)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg.Done()
 		count++
 		return false, 0
 	})
@@ -355,23 +410,28 @@ func TestAddLastMinuteSecond(t *testing.T) {
 
 	w.Tick() // expire 58
 	w.Tick() // expire 59
+	wg.Wait()
 
 	assert(t, count == 1)
 }
 
 func TestRepeatedTicks(t *testing.T) {
 	var count int
+	var wg sync.WaitGroup
 	ser := cynic.EventNew(1)
+	upto := 30
+
+	wg.Add(upto)
 	ser.Repeat(true)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg.Done()
+
 		count++
 		return false, 0
 	})
 
 	w := cynic.PlannerNew()
 	w.Add(&ser)
-
-	upto := 30
 
 	// set cursor on top of first event
 	w.Tick()
@@ -380,6 +440,7 @@ func TestRepeatedTicks(t *testing.T) {
 		w.Tick()
 	}
 
+	wg.Wait()
 	assert(t, count == 30)
 }
 
@@ -453,8 +514,10 @@ func TestRepeatedRotationTables(t *testing.T) {
 	setup := func(interval, timerange int) func(t *testing.T) {
 		return func(t *testing.T) {
 			var count int
+
 			ser := cynic.EventNew(interval)
 			ser.Repeat(true)
+
 			ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 				count++
 				return false, 0
@@ -477,6 +540,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 				log.Println("actual ticks:   ", count)
 				log.Println("planner: \n", w)
 			}
+
 			assert(t, count == expectedCount)
 		}
 	}
