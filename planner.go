@@ -86,11 +86,11 @@ func (s *Planner) Tick() {
 				continue
 			}
 
-			event.Execute()
-
 			if event.IsRepeating() {
 				s.Add(event)
 			}
+
+			go event.Execute()
 
 		} else {
 			break
