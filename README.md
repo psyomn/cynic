@@ -10,6 +10,8 @@ For usage of the storage dumper look at `cynic-store/main.go`.
 
 ## Examples
 
+You can build all examples with `make examples`.
+
 I want to:
 
 - Run an event in 10 seconds: [examples/ten_sec.go][1]
