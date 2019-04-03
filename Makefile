@@ -1,7 +1,7 @@
 # Taken from github.com/RAttab/gonfork
-all: build verify test examples
+all: build verify test
 verify: vet lint
-test: test-cover test-race test-unused test-bench
+test: test-cover test-race test-bench
 .PHONY: all verify test
 
 fmt:
@@ -58,11 +58,5 @@ examples:
 	@echo -- building examples
 	@cd examples && find *.go -exec go build {} \;
 .PHONY: examples
-
-# https://github.com/dominikh/go-tools#tools
-test-unused:
-	@echo -- run unused code checker
-	staticcheck ./...
-.PHONY: test-unused
 
 .PHONY:test-all
