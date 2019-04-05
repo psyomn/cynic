@@ -447,15 +447,13 @@ func TestRepeatedTicks(t *testing.T) {
 
 func TestSimpleRepeatedRotation(t *testing.T) {
 	var wg sync.WaitGroup
-	var count int
+	var count uint32
 	ser := cynic.EventNew(1)
-	label := "simple-repeated-rotation-x3"
 
-	ser.Label = label
 	ser.Repeat(true)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		defer wg.Done()
-		count++
+		atomic.AddUint32(&count, 1)
 		return false, 0
 	})
 
@@ -524,6 +522,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 
 			w := cynic.PlannerNew()
 			w.Add(&ser) // TODO this has to be on top
+			w.Tick()    // place position in the inclusive time ranxge
 
 			expectedCount := (timerange - interval) / interval
 			wg.Add(expectedCount)
@@ -598,22 +597,28 @@ func TestRepeatedRotationTables(t *testing.T) {
 
 func TestPlannerDelete(t *testing.T) {
 	var expire1, expire2 bool
+	var wg1, wg2 sync.WaitGroup
 
 	planner := cynic.PlannerNew()
 	ser := cynic.EventNew(1)
 	ser2 := cynic.EventNew(1)
 
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg1.Done()
 		expire1 = true
 		return false, 0
 	})
 
 	ser2.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg2.Done()
 		expire2 = true
 		return false, 0
 	})
 
+	wg1.Add(1)
 	planner.Add(&ser)
+
+	wg2.Add(1)
 	planner.Add(&ser2)
 
 	assert(t, planner.Delete(&ser))
@@ -622,6 +627,7 @@ func TestPlannerDelete(t *testing.T) {
 
 	planner.Tick()
 	planner.Tick()
+	wg2.Wait()
 
 	// Make sure that the deleted event does not ever execute,
 	// since marked for deletion before tick
@@ -630,6 +636,7 @@ func TestPlannerDelete(t *testing.T) {
 }
 
 func TestSecondsApart(t *testing.T) {
+	var wg1, wg2, wg3 sync.WaitGroup
 	s1 := cynic.EventNew(1)
 	s2 := cynic.EventNew(2)
 	s3 := cynic.EventNew(3)
@@ -638,14 +645,17 @@ func TestSecondsApart(t *testing.T) {
 	run := [...]bool{false, false, false}
 
 	s1.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg1.Done()
 		run[0] = true
 		return false, 0
 	})
 	s2.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg2.Done()
 		run[1] = true
 		return false, 0
 	})
 	s3.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg3.Done()
 		run[2] = true
 		return false, 0
 	})
@@ -654,6 +664,10 @@ func TestSecondsApart(t *testing.T) {
 	s2.Repeat(true)
 	s3.Repeat(true)
 
+	wg1.Add(1)
+	wg2.Add(1)
+	wg3.Add(1)
+
 	pl.Add(&s1)
 	pl.Add(&s2)
 	pl.Add(&s3)
@@ -661,18 +675,22 @@ func TestSecondsApart(t *testing.T) {
 	pl.Tick()
 
 	pl.Tick()
+	wg1.Wait()
 	assert(t, run[0] && !run[1] && !run[2])
 	run = [...]bool{false, false, false}
 
 	pl.Tick()
+	wg2.Wait()
 	assert(t, run[0] && run[1] && !run[2])
 	run = [...]bool{false, false, false}
 
 	pl.Tick()
+	wg3.Wait()
 	assert(t, run[0] && !run[1] && run[2])
 }
 
 func TestChainAddition(t *testing.T) {
+	var wg sync.WaitGroup
 	s1 := cynic.EventNew(1)
 	s2 := cynic.EventNew(1)
 	s3 := cynic.EventNew(1)
@@ -681,15 +699,19 @@ func TestChainAddition(t *testing.T) {
 
 	hook := func(e *cynic.Event, r *bool) cynic.HookSignature {
 		return func(params *cynic.HookParameters) (bool, interface{}) {
+			defer wg.Done()
+			log.Println("ASDF")
+
 			if params == nil {
-				log.Fatal("hook params are nil")
+				t.Fatal("hook params are nil")
 			}
 
 			if params.Planner == nil {
-				log.Fatal("planner should not be nil")
+				t.Fatal("planner should not be nil")
 			}
 
 			if e != nil {
+				log.Println("add event")
 				params.Planner.Add(e)
 			}
 
@@ -706,11 +728,13 @@ func TestChainAddition(t *testing.T) {
 
 	planner := cynic.PlannerNew()
 
+	wg.Add(1)
 	planner.Add(&s1)
 	planner.Tick()
 	assert(t, !(run[0] || run[1] || run[2] || run[3]))
 
 	for i := 0; i < 4; i++ {
+		log.Println("tick")
 		planner.Tick()
 	}
 
@@ -718,11 +742,14 @@ func TestChainAddition(t *testing.T) {
 }
 
 func TestMultipleEventsAndHooks(t *testing.T) {
-	var count int
+	var wg sync.WaitGroup
+	var count uint32
 	const max = 10
 
 	hk := func(_ *cynic.HookParameters) (bool, interface{}) {
-		count++
+		defer wg.Done()
+
+		atomic.AddUint32(&count, 1)
 		return false, 0
 	}
 
@@ -733,17 +760,20 @@ func TestMultipleEventsAndHooks(t *testing.T) {
 		// Add the hook twice, for realsies
 		newEvent.AddHook(hk)
 		newEvent.AddHook(hk)
+		wg.Add(2)
 
 		planner.Add(&newEvent)
 	}
 
 	planner.Tick() // place cursor
 	planner.Tick() // should execute
+	wg.Wait()
 
 	assert(t, count == 20)
 }
 
 func TestImmediateWithOffset(t *testing.T) {
+	var wg sync.WaitGroup
 	var count int
 	offset := 5
 	eventTime := 10
@@ -753,11 +783,14 @@ func TestImmediateWithOffset(t *testing.T) {
 	event.SetOffset(offset)
 	event.Repeat(true)
 	event.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg.Done()
+
 		count++
 		return false, 0
 	})
 
 	planner := cynic.PlannerNew()
+	wg.Add(1)
 	planner.Add(&event)
 
 	// This means that it should tick:
@@ -773,10 +806,13 @@ func TestImmediateWithOffset(t *testing.T) {
 		assert(t, count == 0)
 	}
 	planner.Tick()
+	wg.Wait()
 	assert(t, count == 1)
 
+	wg.Add(1)
 	for i := 0; i < eventTime; i++ {
 		planner.Tick()
 	}
+	wg.Wait()
 	assert(t, count == 2)
 }
