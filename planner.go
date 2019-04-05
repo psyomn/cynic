@@ -19,6 +19,7 @@ package cynic
 
 import (
 	"container/heap"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -54,19 +55,17 @@ func (s *Planner) Len() int {
 }
 
 func (s *Planner) String() string {
-	mkline := func(s string) string {
-		return s + "\n"
-	}
 	var str string
-	str += mkline("=======================")
-	str += mkline("Planner")
-	str += mkline("=======================")
-	str += mkline("Events: \n")
+	str += "=======================\n"
+	str += fmt.Sprintf("Planner | ticks: %d\n", s.ticks)
+	str += "=======================\n"
+	str += "Events: \n"
 
 	for _, el := range s.events {
-		str += mkline("  - " + el.String())
+		str += fmt.Sprintf("  - %s\n", el.String())
 	}
-	str += mkline("=======================")
+	str += "=======================\n"
+
 	return str
 }
 

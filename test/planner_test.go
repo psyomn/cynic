@@ -20,6 +20,7 @@ package cynictesting
 import (
 	"log"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/psyomn/cynic"
@@ -445,6 +446,7 @@ func TestRepeatedTicks(t *testing.T) {
 }
 
 func TestSimpleRepeatedRotation(t *testing.T) {
+	var wg sync.WaitGroup
 	var count int
 	ser := cynic.EventNew(1)
 	label := "simple-repeated-rotation-x3"
@@ -452,87 +454,86 @@ func TestSimpleRepeatedRotation(t *testing.T) {
 	ser.Label = label
 	ser.Repeat(true)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
+		defer wg.Done()
 		count++
 		return false, 0
 	})
 
 	w := cynic.PlannerNew()
-	var totalTicks int
-	for {
-		totalTicks++
-		if w.Tick(); totalTicks == 58 {
-			break
+
+	{
+		for i := 0; i < 59; i++ {
+			w.Tick()
 		}
+		wg.Add(1)
+		w.Add(&ser)
+
+		w.Tick() // place on top of event and ...
+		w.Tick() // ... execute event
+		wg.Wait()
+
+		assert(t, count == 1, "first rotation: %d", count)
 	}
 
-	w.Add(&ser)
-
-	// Test first rotation
-	w.Tick()
-	w.Tick()
-	if count != 1 {
-		log.Println("failed at first rotation")
-	}
-	assert(t, count == 1)
-
-	totalTicks = 0
-	for {
-		totalTicks++
-		if w.Tick(); totalTicks == 59 {
-			break
+	{
+		wg.Add(60)
+		for i := 0; i < 59; i++ {
+			w.Tick()
 		}
+		w.Tick()
+		wg.Wait()
+
+		assert(
+			t, count == 61,
+			"second rotation: expected count 61, but got: %d, \n\nPlanner info: %v",
+			count, w,
+		)
 	}
 
-	w.Tick()
-	if count != 61 {
-		log.Println("failed at second rotation")
-		log.Println("expected count 61, but got: ", count)
-		log.Println(w)
-	}
-	assert(t, count == 61)
-
-	// Test third rotation
-	totalTicks = 0
-	for {
-		totalTicks++
-		if w.Tick(); totalTicks == 59 {
-			break
+	{
+		// Test third rotation
+		wg.Add(60)
+		for i := 0; i < 60; i++ {
+			w.Tick()
 		}
-	}
+		wg.Wait()
 
-	w.Tick()
-
-	if count != 121 {
-		log.Println("failed at third rotation")
-		log.Println("expected count 121, but got: ", count)
-		log.Println(w)
+		assert(t, count == 121,
+			"third rotation: expected count 121, but got: %d\n\nPlanner: %v\n",
+			count,
+			w,
+		)
 	}
-	assert(t, count == 121)
 }
 
 func TestRepeatedRotationTables(t *testing.T) {
 	setup := func(interval, timerange int) func(t *testing.T) {
 		return func(t *testing.T) {
-			var count int
+			var wg sync.WaitGroup
+			var count uint32
 
 			ser := cynic.EventNew(interval)
 			ser.Repeat(true)
 
 			ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
-				count++
+				defer wg.Done()
+
+				atomic.AddUint32(&count, 1)
 				return false, 0
 			})
 
 			w := cynic.PlannerNew()
-			w.Add(&ser)
-			w.Tick() // put cursor on top of just inserted timer
+			w.Add(&ser) // TODO this has to be on top
 
+			expectedCount := (timerange - interval) / interval
+			wg.Add(expectedCount)
 			for i := 0; i < timerange-interval; i++ {
 				w.Tick()
 			}
 
-			expectedCount := (timerange - interval) / interval
-			if expectedCount != count {
+			// wg.Wait()
+			log.Println(&wg)
+			if expectedCount != int(count) {
 				log.Println("##### ", t.Name())
 				log.Println("interval:       ", interval)
 				log.Println("timerange:      ", timerange)
@@ -541,7 +542,7 @@ func TestRepeatedRotationTables(t *testing.T) {
 				log.Println("planner: \n", w)
 			}
 
-			assert(t, count == expectedCount)
+			assert(t, int(count) == expectedCount)
 		}
 	}
 
