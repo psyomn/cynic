@@ -24,8 +24,21 @@ import (
 
 // Assert is a simple helper to see if something is true, and if not
 // raise failure.
-func assert(t *testing.T, val bool) {
-	if !val {
+func assert(t *testing.T, ok bool, args ...interface{}) {
+	if len(args) == 0 && !ok {
 		t.Fail()
+	}
+
+	if len(args) == 1 && !ok {
+		t.Fatalf("%s", args[0])
+	}
+
+	if len(args) > 1 && !ok {
+		format, ok := args[0].(string)
+		if !ok {
+			panic("what do you think you're doing")
+		}
+
+		t.Fatalf(format, args[1:]...)
 	}
 }
