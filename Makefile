@@ -1,5 +1,9 @@
 # Taken from github.com/RAttab/gonfork
 all: build verify test examples
+
+EXAMPLES_GO := $(wildcard examples/*.go)
+EXAMPLES := $(patsubst %.go,%,$(EXAMPLES_GO))
+
 verify: vet lint
 test: test-cover test-race test-unused test-bench
 .PHONY: all verify test
@@ -54,10 +58,15 @@ test-bench:
 	go test -v -bench=.
 .PHONY: test-bench
 
-examples:
+examples_echo:
 	@echo -- building examples
-	@cd examples && find *.go -exec go build {} \;
-.PHONY: examples
+examples: examples_echo $(EXAMPLES)
+
+.PHONY: examples examples_echo
+
+%: %.go
+	@echo -- build $<
+	@go build -o $@ $<
 
 # https://github.com/dominikh/go-tools#tools
 test-unused:
