@@ -3,7 +3,6 @@ go:
   - stable
 script:
   - go get -u golang.org/x/lint/golint
-  - go get -u honnef.co/go/tools/...
   - go get -t ./...
   - make
 notifications:

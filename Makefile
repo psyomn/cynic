@@ -5,7 +5,7 @@ EXAMPLES_GO := $(wildcard examples/*.go)
 EXAMPLES := $(patsubst %.go,%,$(EXAMPLES_GO))
 
 verify: vet lint
-test: test-cover test-race test-unused test-bench
+test: test-cover test-race test-bench
 .PHONY: all verify test
 
 fmt:
@@ -67,11 +67,5 @@ examples: examples_echo $(EXAMPLES)
 %: %.go
 	@echo -- build $<
 	@go build -o $@ $<
-
-# https://github.com/dominikh/go-tools#tools
-test-unused:
-	@echo -- run unused code checker
-	staticcheck ./...
-.PHONY: test-unused
 
 .PHONY:test-all
