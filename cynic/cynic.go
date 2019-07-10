@@ -212,12 +212,12 @@ func main() {
 
 	if version {
 		printVersion()
-		os.Exit(1)
+		os.Exit(0)
 	}
 
 	if help {
 		usage()
-		os.Exit(1)
+		os.Exit(0)
 	}
 
 	handleLog(logPath)
