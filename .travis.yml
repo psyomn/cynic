@@ -1,9 +1,0 @@
-language: go
-go:
-  - stable
-script:
-  - go get -u golang.org/x/lint/golint
-  - go get -t ./...
-  - make
-notifications:
-  email: false
