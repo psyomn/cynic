@@ -1,4 +1,4 @@
-# Cynic [![Build Status](https://travis-ci.org/psyomn/cynic.svg?branch=master)](https://travis-ci.org/psyomn/cynic)
+# Cynic
 
 Simple monitoring, contract and heuristic tool. Dependency free!
 
