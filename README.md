@@ -1,4 +1,4 @@
-# Cynic
+# Cynic ![build](https://github.com/psyomn/cynic/workflows/build/badge.svg)
 
 Simple monitoring, contract and heuristic tool. Dependency free!
 
