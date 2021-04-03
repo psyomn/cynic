@@ -18,7 +18,7 @@ limitations under the License.
 package cynic
 
 // EventQueue is a priority queue that sorts events that are to
-// happen via their absolute expiry
+// happen via their absolute expiry.
 type EventQueue []*Event
 
 func (pq EventQueue) Len() int { return len(pq) }
@@ -34,7 +34,7 @@ func (pq EventQueue) Swap(i, j int) {
 	pq[j].index = j
 }
 
-// Push inserts an event into the priority queue
+// Push inserts an event into the priority queue.
 func (pq *EventQueue) Push(x interface{}) {
 	n := len(*pq)
 	item := x.(*Event)
@@ -42,7 +42,7 @@ func (pq *EventQueue) Push(x interface{}) {
 	*pq = append(*pq, item)
 }
 
-// Pop retrieves the soonest event
+// Pop retrieves the soonest event.
 func (pq *EventQueue) Pop() interface{} {
 	old := *pq
 	n := len(old)
@@ -52,7 +52,7 @@ func (pq *EventQueue) Pop() interface{} {
 	return item
 }
 
-// PeekTimestamp gives the timestamp at the root of the heap
+// PeekTimestamp gives the timestamp at the root of the heap.
 func (pq *EventQueue) PeekTimestamp() (int64, bool) {
 	if len(*pq) == 0 {
 		return 0, false
@@ -63,7 +63,7 @@ func (pq *EventQueue) PeekTimestamp() (int64, bool) {
 	return int64(item.priority), true
 }
 
-// PeekID returns the id of the event at root
+// PeekID returns the id of the event at root.
 func (pq *EventQueue) PeekID() (uint64, bool) {
 	if len(*pq) == 0 {
 		return 0, false

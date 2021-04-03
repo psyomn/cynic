@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-// AlertFunc defines the hook signature for alert messages
+// AlertFunc defines the hook signature for alert messages.
 type AlertFunc = func([]AlertMessage)
 
 // Alerter is an entity that ticks, and if there are alert messages,
@@ -44,27 +44,29 @@ type AlertMessage struct {
 	CynicHostname string      `json:"cynic_hostname"`
 }
 
-// AlerterNew creates a new alerter
+// AlerterNew creates a new alerter.
 func AlerterNew(waitTime int, alerter AlertFunc) Alerter {
 	var alerts []AlertMessage
 	ch := make(chan AlertMessage)
+	stop := make(chan int)
 	ticker := time.NewTicker(time.Second * time.Duration(waitTime))
 
 	return Alerter{
 		alerts:     alerts,
 		Ch:         ch,
+		stopCh:     stop,
 		waitTime:   waitTime,
 		waitTicker: ticker,
 		alerterFn:  alerter,
 	}
 }
 
-// Start begins the alerter
+// Start begins the alerter.
 func (s *Alerter) Start() {
 	go s.run()
 }
 
-// Stop the alerter
+// Stop the alerter.
 func (s *Alerter) Stop() {
 	s.stopCh <- 0
 }

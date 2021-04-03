@@ -1,7 +1,7 @@
 /*
-Package cynic_testing tests that it can monitor you from the ceiling.
+Package cynic monitors you from the ceiling
 
-Copyright 2018 Simon Symeonidis (psyomn)
+Copyright 2018-2021 Simon Symeonidis (psyomn)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cynictesting
+package test
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/psyomn/cynic"
+	"github.com/psyomn/cynic/lib"
 )
 
 func TestEventIdIncreaseMonotonically(t *testing.T) {
@@ -82,7 +82,18 @@ func TestEventWithQueryAndRepo(t *testing.T) {
 
 	ser := cynic.EventNew(1)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
-		http.Get(ts.URL)
+		cli := &http.Client{}
+		req, err := makeBackgroundRequest(ts.URL)
+		if err != nil {
+			return true, 0
+		}
+
+		resp, err := cli.Do(req)
+		if err != nil {
+			return true, 0
+		}
+		defer resp.Body.Close()
+
 		return false, 0
 	})
 	ser.SetDataRepo(&repo)
@@ -99,13 +110,22 @@ func TestEventWithQueryNoRepo(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	repo := cynic.StatusServerNew("", "0", "/status/testeventwithquerynorepo")
 	ser := cynic.EventNew(1)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
-		http.Get(ts.URL)
+		cli := &http.Client{}
+		req, err := makeBackgroundRequest(ts.URL)
+		if err != nil {
+			return true, 0
+		}
+
+		resp, err := cli.Do(req)
+		if err == nil {
+			return true, 0
+		}
+		defer resp.Body.Close()
+
 		return false, 0
 	})
-	ser.SetDataRepo(&repo)
 	ser.Execute()
 
 	assert(t, ran)

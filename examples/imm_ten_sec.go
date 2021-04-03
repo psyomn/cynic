@@ -20,8 +20,9 @@ limitations under the License.
 package main
 
 import (
-	"github.com/psyomn/cynic"
 	"log"
+
+	"github.com/psyomn/cynic/lib"
 )
 
 func main() {

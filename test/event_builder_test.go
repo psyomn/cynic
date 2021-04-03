@@ -1,6 +1,4 @@
 /*
-Package cynic_testing tests that it can monitor you from the ceiling.
-
 Copyright 2018 Simon Symeonidis (psyomn)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cynictesting
+package test
 
 import (
 	"testing"
 
-	"github.com/psyomn/cynic"
+	"github.com/psyomn/cynic/lib"
 )
 
 func TestSimpleBuilder(t *testing.T) {
@@ -53,9 +51,9 @@ func TestSimpleBuilder(t *testing.T) {
 	}
 
 	testCases := [...]testCase{
-		testCase{"maxtime 5, event count 5", 5, 5},
-		testCase{"maxtime 1000 event count 100", 100, 1000},
-		testCase{"maxtime 999 event count 100", 100, 999},
+		{"maxtime 5, event count 5", 5, 5},
+		{"maxtime 1000 event count 100", 100, 1000},
+		{"maxtime 999 event count 100", 100, 999},
 	}
 
 	for _, c := range testCases {
@@ -80,9 +78,9 @@ func TestSimpleErrorCases(t *testing.T) {
 	}
 
 	tests := [...]testCase{
-		testCase{"maxtime -10 event count 1", 1, -10},
-		testCase{"maxtime 0 event count 10", 0, 10},
-		testCase{"maxtime 10 event count 11", 10, 11},
+		{"maxtime -10 event count 1", 1, -10},
+		{"maxtime 0 event count 10", 0, 10},
+		{"maxtime 10 event count 11", 10, 11},
 	}
 
 	for _, c := range tests {

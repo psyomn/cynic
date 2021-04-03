@@ -1,4 +1,6 @@
 /*
+Package cynic monitors you from the ceiling
+
 Copyright 2018-2021 Simon Symeonidis (psyomn)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,24 +15,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package test
+package cynic
 
-import (
-	"context"
-	"net/http"
-	"testing"
-)
+import "fmt"
 
-// Assert is a simple helper to see if something is true, and if not
-// raise failure.
-func assert(t *testing.T, val bool) {
-	if !val {
-		t.Fail()
-	}
-}
-
-func makeBackgroundRequest(url string) (*http.Request, error) {
-	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	return req, err
-}
+var ErrStatusValueNotFound = fmt.Errorf("could not find required value")

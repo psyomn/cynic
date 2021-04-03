@@ -1,7 +1,7 @@
 /*
-Package cynic monitors you from the ceiling.
+Package cynic monitors you from the ceiling
 
-Copyright 2018 Simon Symeonidis (psyomn)
+Copyright 2018-2021 Simon Symeonidis (psyomn)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cynictesting
+package test
 
 import (
 	"encoding/json"
@@ -28,7 +28,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/psyomn/cynic"
+	"github.com/psyomn/cynic/lib"
 )
 
 func TestCRUD(t *testing.T) {
@@ -76,35 +76,36 @@ func TestGetNonExistantKey(t *testing.T) {
 
 func TestConcurrentCRUD(t *testing.T) {
 	status := cynic.StatusServerNew("", "0", "9999")
-	var wg sync.WaitGroup
+	var wgw, wgr sync.WaitGroup
 	n := 100
 
 	status.Update("counter", 1)
 	status.Update("timestamp", time.Now().Unix())
 
 	for i := 0; i < n; i++ {
-		// writers
-
-		wg.Add(1)
+		wgw.Add(1)
 		go func(index int) {
-			defer wg.Done()
+			defer wgw.Done()
 			key := fmt.Sprintf("blargh-%d", index)
 			status.Update(key, index)
 		}(i)
 	}
 
 	for i := 0; i < n; i++ {
-		// readers
-
-		wg.Add(1)
+		wgr.Add(1)
 		go func(index int) {
-			defer wg.Done()
+			defer wgr.Done()
 			key := fmt.Sprintf("blargh-%d", index)
-			status.Get(key)
+
+			// this might or might not find some of the required keys
+			// due to the async reads/writes, and that's OK. mostly
+			// here to evoke errors on the race condition tester
+			_, _ = status.Get(key)
 		}(i)
 	}
 
-	wg.Wait()
+	wgr.Wait()
+	wgw.Wait()
 }
 
 func TestRestEndpoint(t *testing.T) {
@@ -120,15 +121,21 @@ func TestRestEndpoint(t *testing.T) {
 
 	go func() { server.Start() }()
 
-	resp, err := http.Get("http://127.0.0.1:" + port + endpoint)
+	cli := &http.Client{}
+	req, err := makeBackgroundRequest("http://127.0.0.1:" + port + endpoint)
 	if err != nil {
-		t.Fatal("could not connect: ", err)
+		t.Fatal("could not create request:", err)
+	}
+
+	resp, err := cli.Do(req)
+	if err != nil {
+		t.Fatal("could not connect:", err)
 	}
 	defer resp.Body.Close()
 
 	text, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("error reading all:", err)
 	}
 
 	var values map[string]string

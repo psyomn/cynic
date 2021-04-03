@@ -24,18 +24,18 @@ import (
 )
 
 const (
-	// StopEvent is the signal to stop the running querying event
+	// StopEvent is the signal to stop the running querying event.
 	StopEvent = iota
 
-	// AddEvent adds a event to a running cynic instance
+	// AddEvent adds a event to a running cynic instance.
 	AddEvent
 
-	// DeleteEvent removes a event from a running cynic instance
+	// DeleteEvent removes a event from a running cynic instance.
 	DeleteEvent
 )
 
 // Session is the configuration a cynic instance requires to start
-// running and working
+// running and working.
 type Session struct {
 	Events         []Event
 	StatusCache    *StatusCache

@@ -1,0 +1,96 @@
+run:
+  # timeout for analysis, e.g. 30s, 5m, default is 1m
+  timeout: 1m
+
+  # exit code when at least one issue was found, default is 1
+  issues-exit-code: 1
+
+  # include test files or not, default is true
+  tests: true
+
+linters:
+  enable:
+    # enabled by default
+    - asciicheck
+    - bodyclose
+    - deadcode
+    - dupl
+    - durationcheck
+    - errcheck
+    - errorlint
+    - exhaustive
+    - exportloopref
+    - gocritic
+    - goheader
+    - golint
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - makezero
+    - misspell
+    - nilerr
+    - noctx
+    - prealloc
+    - rowserrcheck
+    - scopelint
+    - sqlclosecheck
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unparam
+    - unused
+    - varcheck
+
+    # disabled by default
+    # - cyclop
+    - depguard
+    - dogsled
+    # - exhaustivestruct
+    # - forbidigo
+    # - forcetypeassert
+    # - funlen
+    - gci
+    # - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - goconst
+    - gocyclo
+    # - godot
+    # - godox
+    - goerr113
+    - gofmt
+    - gofumpt
+    # - goimports
+    # - gomnd
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    # - ifshort
+    - importas
+    - interfacer
+    # - maligned # TODO: should enable this
+    - nakedret
+    - nestif
+    # - nlreturn
+    - nolintlint
+    # - paralleltest # TODO: might be good to investigate
+    - predeclared
+    - revive
+    - stylecheck
+    # - testpackage
+    # - thelper
+    # - tparallel
+    # - unconvert
+    # - wastedassign
+    # - whitespace
+    # - wrapcheck
+    # - wsl
+
+  disable:
+  disable-all: false
+  presets:
+    - bugs
+    - unused
+  fast: false

@@ -30,7 +30,7 @@ vet: build
 
 lint: vet
 	@echo -- report coding style issues
-	@find . -type f -name "*.go" -exec golint {} \;
+	golangci-lint run
 .PHONY: lint
 
 test-cover: vet
@@ -55,7 +55,7 @@ test-cover-anal:
 
 test-bench:
 	@echo -- run benchmarks
-	go test -v -bench=.
+	go test -v -bench=. ./test/...
 .PHONY: test-bench
 
 examples_echo:

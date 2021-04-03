@@ -15,13 +15,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cynictesting
+package test
 
 import (
 	"container/heap"
 	"testing"
 
-	"github.com/psyomn/cynic"
+	"github.com/psyomn/cynic/lib"
 )
 
 func makeEventQueue() cynic.EventQueue {
@@ -63,7 +63,6 @@ func TestEventQueueTimestamp(t *testing.T) {
 		assert(t, ok)
 		assert(t, expectedID == actualID)
 	}
-
 }
 
 func TestPeekEmpty(t *testing.T) {

@@ -1,7 +1,7 @@
 /*
-Package cynic monitors you from the ceiling.
+Package cynic monitors you from the ceiling
 
-Copyright 2018 Simon Symeonidis (psyomn)
+Copyright 2018-2021 Simon Symeonidis (psyomn)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -51,13 +51,13 @@ const (
 	StatusPort = "9999"
 
 	// DefaultStatusEndpoint is where the default status json can
-	// be retrieved from
+	// be retrieved from.
 	DefaultStatusEndpoint = "/status/"
 
 	defaultLinksEndpoint = "/links"
 )
 
-// StatusServerNew creates a new status server for cynic
+// StatusServerNew creates a new status server for cynic.
 func StatusServerNew(host, port, root string) StatusCache {
 	server := &http.Server{
 		Addr:           host + ":" + port,
@@ -83,7 +83,7 @@ func StatusServerNew(host, port, root string) StatusCache {
 }
 
 // WithSnapshots will make the cache dump snapshots of the data with
-// given intervals when the service starts
+// given intervals when the service starts.
 func (s *StatusCache) WithSnapshots(config *SnapshotConfig) {
 	store := snapshotStoreNew()
 	s.snapshotConfig = config
@@ -114,12 +114,12 @@ func (s *StatusCache) Start() {
 	http.HandleFunc(defaultLinksEndpoint, s.makeLinks)
 	err := s.server.Serve(s.listener)
 
-	if err != http.ErrServerClosed {
+	if !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal("problem shutting down status http server: ", err)
 	}
 }
 
-// Stop gracefully shuts down the server
+// Stop gracefully shuts down the server.
 func (s *StatusCache) Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -131,28 +131,26 @@ func (s *StatusCache) Stop() {
 }
 
 // Update updates the information about all the contracts that are
-// running on different endpoints
+// running on different endpoints.
 func (s *StatusCache) Update(key string, value interface{}) {
 	s.contractResults.Store(key, value)
 }
 
-// Delete removes an entry from the sync map
+// Delete removes an entry from the sync map.
 func (s *StatusCache) Delete(key string) {
 	s.contractResults.Delete(key)
 }
 
-// Get gets the value inside the contract results
+// Get gets the value inside the contract results.
 func (s *StatusCache) Get(key string) (interface{}, error) {
 	value, ok := s.contractResults.Load(key)
-
 	if !ok {
-		return nil, errors.New("could not find required value")
+		return nil, ErrStatusValueNotFound
 	}
-
 	return value, nil
 }
 
-// NumEntries returns the number of entries in the map
+// NumEntries returns the number of entries in the map.
 func (s *StatusCache) NumEntries() (count int) {
 	s.contractResults.Range(func(_, _ interface{}) bool {
 		count++
@@ -181,7 +179,7 @@ func (s *StatusCache) makeResponse(w http.ResponseWriter, req *http.Request) {
 		log.Println("problem generating json for status endpoint: ", err)
 		ret = "{\"error\":\"could not format status data\"}"
 	} else {
-		ret = string(jsonBuff[:])
+		ret = string(jsonBuff)
 	}
 
 	fmt.Fprintf(w, "%s", ret)
@@ -210,8 +208,11 @@ func (s *StatusCache) makeLinks(w http.ResponseWriter, req *http.Request) {
 	})
 
 end:
+	// TODO this needs cleanup
 	builder.WriteString("</body></html>")
-	w.Write([]byte(builder.String()))
+	if _, err := w.Write([]byte(builder.String())); err != nil {
+		log.Println(err)
+	}
 }
 
 func (s *StatusCache) statusCacheToJSON(query string) ([]byte, error) {
@@ -252,9 +253,8 @@ func (s *StatusCache) dump() {
 	filename := fmt.Sprintf("%s.%v.cynic", strDate, s.snapshot.Version)
 
 	dumpPath := path.Join(s.snapshotConfig.Path, filename)
-	error := s.snapshot.encodeToFile(dumpPath)
-	if error != nil {
-		log.Println("problem encoding and dumping to file: ", error)
+	if err := s.snapshot.encodeToFile(dumpPath); err != nil {
+		log.Println("problem encoding and dumping to file:", err)
 	}
 
 	s.snapshot.clear()

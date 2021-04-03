@@ -23,7 +23,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/psyomn/cynic"
+	"github.com/psyomn/cynic/lib"
 )
 
 func main() {

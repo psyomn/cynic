@@ -1,7 +1,7 @@
 /*
-Package cynic monitors you from the ceiling.
+Package cynic monitors you from the ceiling
 
-Copyright 2018 Simon Symeonidis (psyomn)
+Copyright 2018-2021 Simon Symeonidis (psyomn)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,23 +25,17 @@ import (
 	"time"
 )
 
-var (
-	hostVal = ""
-)
-
-func init() {
-	{ // Hostname resolution
-		maybeHostVal, err := os.Hostname()
-		if err != nil {
-			log.Println("couldn't get hostname: ", err)
-			hostVal = "badhost"
-		} else {
-			hostVal = maybeHostVal
-		}
+func currentHost() string {
+	ret := "badhost"
+	if maybeHostVal, err := os.Hostname(); err != nil {
+		log.Println("couldn't get hostname: ", err)
+	} else {
+		ret = maybeHostVal
 	}
+	return ret
 }
 
-// HookParameters is any state that should be passed to the hook
+// HookParameters is any state that should be passed to the hook.
 type HookParameters struct {
 	// Planner is access to the planner that the hook executes
 	// on. The user for example, should be able to add more events
@@ -65,7 +59,7 @@ type HookSignature = func(*HookParameters) (bool, interface{})
 // - A event is an action
 // - A event can have many:
 //   - hooks (that can act as contracts)
-// - A event may be bound to a data repository/cache
+// - A event may be bound to a data repository/cache.
 type Event struct {
 	id        uint64
 	secs      int
@@ -88,7 +82,7 @@ type Event struct {
 var lastID uint64
 
 // EventNew creates a new event that is primarily used for pure
-// execution
+// execution.
 func EventNew(secs int) Event {
 	if secs <= 0 {
 		log.Fatal("Events must have seconds > 0")
@@ -108,50 +102,56 @@ func EventNew(secs int) Event {
 		id:        id,
 		priority:  priority,
 		deleted:   false,
+
+		Label:   "",
+		planner: nil,
+		repo:    nil,
+		index:   0,
+		extra:   nil,
 	}
 }
 
-// AddHook appends a hook to the event
+// AddHook appends a hook to the event.
 func (s *Event) AddHook(fn HookSignature) {
 	s.hooks = append(s.hooks, fn)
 }
 
-// NumHooks counts the hooks
+// NumHooks counts the hooks.
 func (s *Event) NumHooks() int {
 	return len(s.hooks)
 }
 
-// Immediate will make the event run immediately
+// Immediate will make the event run immediately.
 func (s *Event) Immediate(val bool) {
 	s.immediate = val
 }
 
-// IsImmediate returns true if event is immediate
+// IsImmediate returns true if event is immediate.
 func (s *Event) IsImmediate() bool {
 	return s.immediate
 }
 
-// SetOffset sets the time before the event starts ticking
+// SetOffset sets the time before the event starts ticking.
 func (s *Event) SetOffset(offset int) {
 	s.offset = offset
 }
 
-// GetOffset returns the offset time of the event
+// GetOffset returns the offset time of the event.
 func (s *Event) GetOffset() int {
 	return s.offset
 }
 
-// Repeat makes the event repeatable
+// Repeat makes the event repeatable.
 func (s *Event) Repeat(rep bool) {
 	s.repeat = rep
 }
 
-// IsRepeating says whether a event repeats or not
+// IsRepeating says whether a event repeats or not.
 func (s *Event) IsRepeating() bool {
 	return s.repeat
 }
 
-// ID returns the unique identifier of the event
+// ID returns the unique identifier of the event.
 func (s *Event) ID() uint64 {
 	return s.id
 }
@@ -180,12 +180,12 @@ func (s *Event) UniqStr() string {
 	return ret
 }
 
-// SetDataRepo sets where the data processed should be stored in
+// SetDataRepo sets where the data processed should be stored in.
 func (s *Event) SetDataRepo(repo *StatusCache) {
 	s.repo = repo
 }
 
-// Execute the event
+// Execute the event.
 func (s *Event) Execute() {
 	for _, hook := range s.hooks {
 		ok, result := hook(&HookParameters{
@@ -198,13 +198,13 @@ func (s *Event) Execute() {
 	}
 }
 
-// SetAbsExpiry sets the timestamp that the event is suposed to
+// SetAbsExpiry sets the timestamp that the event is supposed to
 // expire on.
 func (s *Event) SetAbsExpiry(ts int64) {
 	s.priority = int(ts)
 }
 
-// GetAbsExpiry gets the timestamp
+// GetAbsExpiry gets the timestamp.
 func (s *Event) GetAbsExpiry() int64 {
 	return int64(s.priority)
 }
@@ -222,17 +222,17 @@ func (s *Event) String() string {
 		s.repo)
 }
 
-// Delete marks event for deletion
+// Delete marks event for deletion.
 func (s *Event) Delete() {
 	s.deleted = true
 }
 
-// IsDeleted returns if event is marked for deletion
+// IsDeleted returns if event is marked for deletion.
 func (s *Event) IsDeleted() bool {
 	return s.deleted
 }
 
-// SetExtra state you may want passed to hooks
+// SetExtra state you may want passed to hooks.
 func (s *Event) SetExtra(extra interface{}) {
 	s.extra = extra
 }
@@ -251,6 +251,6 @@ func (s *Event) maybeAlert(shouldAlert bool, result interface{}) {
 	alerter.Ch <- AlertMessage{
 		Response:      result,
 		Now:           time.Now().Format(time.RFC3339),
-		CynicHostname: hostVal,
+		CynicHostname: currentHost(),
 	}
 }

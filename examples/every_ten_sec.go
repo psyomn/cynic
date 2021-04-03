@@ -22,7 +22,7 @@ package main
 import (
 	"log"
 
-	"github.com/psyomn/cynic"
+	"github.com/psyomn/cynic/lib"
 )
 
 func main() {
