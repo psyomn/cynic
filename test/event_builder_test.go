@@ -1,6 +1,4 @@
 /*
-Package cynic_testing tests that it can monitor you from the ceiling.
-
 Copyright 2018 Simon Symeonidis (psyomn)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cynictesting
+package cynic_test
 
 import (
 	"testing"

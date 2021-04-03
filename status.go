@@ -144,11 +144,9 @@ func (s *StatusCache) Delete(key string) {
 // Get gets the value inside the contract results.
 func (s *StatusCache) Get(key string) (interface{}, error) {
 	value, ok := s.contractResults.Load(key)
-
 	if !ok {
-		return nil, errors.New("could not find required value")
+		return nil, ErrStatusValueNotFound
 	}
-
 	return value, nil
 }
 
@@ -255,9 +253,8 @@ func (s *StatusCache) dump() {
 	filename := fmt.Sprintf("%s.%v.cynic", strDate, s.snapshot.Version)
 
 	dumpPath := path.Join(s.snapshotConfig.Path, filename)
-	error := s.snapshot.encodeToFile(dumpPath)
-	if error != nil {
-		log.Println("problem encoding and dumping to file: ", error)
+	if err := s.snapshot.encodeToFile(dumpPath); err != nil {
+		log.Println("problem encoding and dumping to file:", err)
 	}
 
 	s.snapshot.clear()
