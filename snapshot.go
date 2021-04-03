@@ -33,7 +33,7 @@ const (
 	storeVersion = 1
 )
 
-// SnapshotConfig is the configuration for the snapshots to be taken
+// SnapshotConfig is the configuration for the snapshots to be taken.
 type SnapshotConfig struct {
 	Interval  time.Duration
 	DumpEvery time.Duration
@@ -47,7 +47,7 @@ type snapshot struct {
 	Data      string // json
 }
 
-// SnapshotStore is storage of states of the map at different times
+// SnapshotStore is storage of states of the map at different times.
 type SnapshotStore struct {
 	Magic     uint64
 	Version   uint8 // storage version
@@ -56,7 +56,7 @@ type SnapshotStore struct {
 
 var snapshotMutex sync.Mutex
 
-// String stringifies the contents of SnapshotStore
+// String stringifies the contents of SnapshotStore.
 func (s *SnapshotStore) String() string {
 	snapshotMutex.Lock()
 	defer snapshotMutex.Unlock()

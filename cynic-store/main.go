@@ -30,9 +30,7 @@ import (
 	"github.com/psyomn/cynic"
 )
 
-var (
-	cmdInFile = ""
-)
+var cmdInFile = ""
 
 func init() {
 	flag.StringVar(&cmdInFile, "input", cmdInFile, "the cynic db store to dump")

@@ -46,7 +46,7 @@ func PlannerNew() *Planner {
 }
 
 // Len returns the amount of events the planner has stored for later
-// execution
+// execution.
 func (s *Planner) Len() int {
 	s.mux.Lock()
 	defer s.mux.Unlock()
@@ -91,7 +91,6 @@ func (s *Planner) Tick() {
 			if event.IsRepeating() {
 				s.Add(event)
 			}
-
 		} else {
 			break
 		}
@@ -100,7 +99,7 @@ func (s *Planner) Tick() {
 	s.ticks++
 }
 
-// Add adds an event to the planner
+// Add adds an event to the planner.
 func (s *Planner) Add(event *Event) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
@@ -125,7 +124,7 @@ func (s *Planner) Add(event *Event) {
 	heap.Push(&s.events, event)
 }
 
-// Run runs the wheel, with a 1s tick
+// Run runs the wheel, with a 1s tick.
 func (s *Planner) Run() {
 	ticker := time.NewTicker(time.Second)
 	go func() {
@@ -153,12 +152,12 @@ func (s *Planner) Delete(event *Event) bool {
 	return false
 }
 
-// GetAlerter gets the assigned alerter of planner
+// GetAlerter gets the assigned alerter of planner.
 func (s *Planner) GetAlerter() *Alerter {
 	return s.alerter
 }
 
-// SetAlerter sets the alerter
+// SetAlerter sets the alerter.
 func (s *Planner) SetAlerter(alerter *Alerter) {
 	s.alerter = alerter
 }

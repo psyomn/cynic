@@ -63,7 +63,6 @@ func TestEventQueueTimestamp(t *testing.T) {
 		assert(t, ok)
 		assert(t, expectedID == actualID)
 	}
-
 }
 
 func TestPeekEmpty(t *testing.T) {

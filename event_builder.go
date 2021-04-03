@@ -59,7 +59,7 @@ func (s *EventBuilder) Build() (Session, bool) {
 	return sess, ret
 }
 
-// DistributeEvents over a max time interval
+// DistributeEvents over a max time interval.
 func (s *EventBuilder) DistributeEvents(maxTime int) {
 	s.distribution = &distributionParams{
 		maxTime: maxTime,
@@ -73,7 +73,6 @@ func (s *EventBuilder) makeDistributeEvents() bool {
 		// min granularity is a sec, so 11 events in 10 secs
 		// do not guarantee some sort of distribution
 		len(s.events) > s.distribution.maxTime {
-
 		return false
 	}
 
@@ -88,7 +87,7 @@ func (s *EventBuilder) makeDistributeEvents() bool {
 	return true
 }
 
-// Repeatable will mark all events as repeatable
+// Repeatable will mark all events as repeatable.
 func (s *EventBuilder) Repeatable() {
 	s.allRepeatable = true
 }

@@ -51,13 +51,13 @@ const (
 	StatusPort = "9999"
 
 	// DefaultStatusEndpoint is where the default status json can
-	// be retrieved from
+	// be retrieved from.
 	DefaultStatusEndpoint = "/status/"
 
 	defaultLinksEndpoint = "/links"
 )
 
-// StatusServerNew creates a new status server for cynic
+// StatusServerNew creates a new status server for cynic.
 func StatusServerNew(host, port, root string) StatusCache {
 	server := &http.Server{
 		Addr:           host + ":" + port,
@@ -83,7 +83,7 @@ func StatusServerNew(host, port, root string) StatusCache {
 }
 
 // WithSnapshots will make the cache dump snapshots of the data with
-// given intervals when the service starts
+// given intervals when the service starts.
 func (s *StatusCache) WithSnapshots(config *SnapshotConfig) {
 	store := snapshotStoreNew()
 	s.snapshotConfig = config
@@ -119,7 +119,7 @@ func (s *StatusCache) Start() {
 	}
 }
 
-// Stop gracefully shuts down the server
+// Stop gracefully shuts down the server.
 func (s *StatusCache) Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -131,17 +131,17 @@ func (s *StatusCache) Stop() {
 }
 
 // Update updates the information about all the contracts that are
-// running on different endpoints
+// running on different endpoints.
 func (s *StatusCache) Update(key string, value interface{}) {
 	s.contractResults.Store(key, value)
 }
 
-// Delete removes an entry from the sync map
+// Delete removes an entry from the sync map.
 func (s *StatusCache) Delete(key string) {
 	s.contractResults.Delete(key)
 }
 
-// Get gets the value inside the contract results
+// Get gets the value inside the contract results.
 func (s *StatusCache) Get(key string) (interface{}, error) {
 	value, ok := s.contractResults.Load(key)
 
@@ -152,7 +152,7 @@ func (s *StatusCache) Get(key string) (interface{}, error) {
 	return value, nil
 }
 
-// NumEntries returns the number of entries in the map
+// NumEntries returns the number of entries in the map.
 func (s *StatusCache) NumEntries() (count int) {
 	s.contractResults.Range(func(_, _ interface{}) bool {
 		count++
@@ -181,7 +181,7 @@ func (s *StatusCache) makeResponse(w http.ResponseWriter, req *http.Request) {
 		log.Println("problem generating json for status endpoint: ", err)
 		ret = "{\"error\":\"could not format status data\"}"
 	} else {
-		ret = string(jsonBuff[:])
+		ret = string(jsonBuff)
 	}
 
 	fmt.Fprintf(w, "%s", ret)
