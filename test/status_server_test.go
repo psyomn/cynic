@@ -78,13 +78,12 @@ func TestConcurrentCRUD(t *testing.T) {
 	status := cynic.StatusServerNew("", "0", "9999")
 	var wg sync.WaitGroup
 	n := 100
+	fail := false
 
 	status.Update("counter", 1)
 	status.Update("timestamp", time.Now().Unix())
 
 	for i := 0; i < n; i++ {
-		// writers
-
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
@@ -94,17 +93,22 @@ func TestConcurrentCRUD(t *testing.T) {
 	}
 
 	for i := 0; i < n; i++ {
-		// readers
-
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
 			key := fmt.Sprintf("blargh-%d", index)
-			status.Get(key)
+
+			if _, err := status.Get(key); err != nil {
+				fail = true
+			}
 		}(i)
 	}
 
 	wg.Wait()
+
+	if fail == true {
+		t.Fatal("failed in read/write of status server contents")
+	}
 }
 
 func TestRestEndpoint(t *testing.T) {
