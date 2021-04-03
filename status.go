@@ -114,7 +114,7 @@ func (s *StatusCache) Start() {
 	http.HandleFunc(defaultLinksEndpoint, s.makeLinks)
 	err := s.server.Serve(s.listener)
 
-	if err != http.ErrServerClosed {
+	if !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal("problem shutting down status http server: ", err)
 	}
 }
@@ -210,8 +210,11 @@ func (s *StatusCache) makeLinks(w http.ResponseWriter, req *http.Request) {
 	})
 
 end:
+	// TODO this needs cleanup
 	builder.WriteString("</body></html>")
-	w.Write([]byte(builder.String()))
+	if _, err := w.Write([]byte(builder.String())); err != nil {
+		log.Println(err)
+	}
 }
 
 func (s *StatusCache) statusCacheToJSON(query string) ([]byte, error) {
