@@ -28,7 +28,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/psyomn/cynic"
+	"github.com/psyomn/cynic/lib"
 )
 
 var (

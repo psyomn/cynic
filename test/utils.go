@@ -1,6 +1,4 @@
 /*
-Package cynic monitors you from the ceiling
-
 Copyright 2018-2021 Simon Symeonidis (psyomn)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cynic_test
+package test
 
 import (
 	"context"

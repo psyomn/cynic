@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cynic_test
+package test
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/psyomn/cynic"
+	"github.com/psyomn/cynic/lib"
 )
 
 func TestEventIdIncreaseMonotonically(t *testing.T) {

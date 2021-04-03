@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cynic_test
+package test
 
 import (
 	"encoding/json"
@@ -28,7 +28,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/psyomn/cynic"
+	"github.com/psyomn/cynic/lib"
 )
 
 func TestCRUD(t *testing.T) {

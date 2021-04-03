@@ -27,7 +27,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/psyomn/cynic"
+	"github.com/psyomn/cynic/lib"
 )
 
 type session struct {
