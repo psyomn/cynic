@@ -113,7 +113,7 @@ func (s *SnapshotStore) encodeToFile(path string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(path, buffer.Bytes(), 0644)
+	return ioutil.WriteFile(path, buffer.Bytes(), 0600)
 }
 
 func (s *SnapshotStore) clear() {
