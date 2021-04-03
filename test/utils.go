@@ -19,6 +19,8 @@ limitations under the License.
 package cynictesting
 
 import (
+	"context"
+	"net/http"
 	"testing"
 )
 
@@ -28,4 +30,10 @@ func assert(t *testing.T, val bool) {
 	if !val {
 		t.Fail()
 	}
+}
+
+func makeBackgroundRequest(url string) (*http.Request, error) {
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	return req, err
 }

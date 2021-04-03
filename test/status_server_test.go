@@ -120,15 +120,21 @@ func TestRestEndpoint(t *testing.T) {
 
 	go func() { server.Start() }()
 
-	resp, err := http.Get("http://127.0.0.1:" + port + endpoint)
+	cli := &http.Client{}
+	req, err := makeBackgroundRequest("http://127.0.0.1:" + port + endpoint)
 	if err != nil {
-		t.Fatal("could not connect: ", err)
+		t.Fatal("could not create request:", err)
+	}
+
+	resp, err := cli.Do(req)
+	if err != nil {
+		t.Fatal("could not connect:", err)
 	}
 	defer resp.Body.Close()
 
 	text, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("error reading all:", err)
 	}
 
 	var values map[string]string

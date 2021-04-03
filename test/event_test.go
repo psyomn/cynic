@@ -82,7 +82,18 @@ func TestEventWithQueryAndRepo(t *testing.T) {
 
 	ser := cynic.EventNew(1)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
-		http.Get(ts.URL)
+		cli := &http.Client{}
+		req, err := makeBackgroundRequest(ts.URL)
+		if err != nil {
+			return true, 0
+		}
+
+		resp, err := cli.Do(req)
+		if err != nil {
+			return true, 0
+		}
+		defer resp.Body.Close()
+
 		return false, 0
 	})
 	ser.SetDataRepo(&repo)
@@ -102,7 +113,18 @@ func TestEventWithQueryNoRepo(t *testing.T) {
 	repo := cynic.StatusServerNew("", "0", "/status/testeventwithquerynorepo")
 	ser := cynic.EventNew(1)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
-		http.Get(ts.URL)
+		cli := &http.Client{}
+		req, err := makeBackgroundRequest(ts.URL)
+		if err != nil {
+			return true, 0
+		}
+
+		resp, err := cli.Do(req)
+		if err == nil {
+			return true, 0
+		}
+		defer resp.Body.Close()
+
 		return false, 0
 	})
 	ser.SetDataRepo(&repo)
