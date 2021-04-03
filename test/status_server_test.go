@@ -76,39 +76,36 @@ func TestGetNonExistantKey(t *testing.T) {
 
 func TestConcurrentCRUD(t *testing.T) {
 	status := cynic.StatusServerNew("", "0", "9999")
-	var wg sync.WaitGroup
+	var wgw, wgr sync.WaitGroup
 	n := 100
-	fail := false
 
 	status.Update("counter", 1)
 	status.Update("timestamp", time.Now().Unix())
 
 	for i := 0; i < n; i++ {
-		wg.Add(1)
+		wgw.Add(1)
 		go func(index int) {
-			defer wg.Done()
+			defer wgw.Done()
 			key := fmt.Sprintf("blargh-%d", index)
 			status.Update(key, index)
 		}(i)
 	}
 
 	for i := 0; i < n; i++ {
-		wg.Add(1)
+		wgr.Add(1)
 		go func(index int) {
-			defer wg.Done()
+			defer wgr.Done()
 			key := fmt.Sprintf("blargh-%d", index)
 
-			if _, err := status.Get(key); err != nil {
-				fail = true
-			}
+			// this might or might not find some of the required keys
+			// due to the async reads/writes, and that's OK. mostly
+			// here to evoke errors on the race condition tester
+			_, _ = status.Get(key)
 		}(i)
 	}
 
-	wg.Wait()
-
-	if fail == true {
-		t.Fatal("failed in read/write of status server contents")
-	}
+	wgr.Wait()
+	wgw.Wait()
 }
 
 func TestRestEndpoint(t *testing.T) {
