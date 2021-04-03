@@ -2,6 +2,12 @@
 
 Simple monitoring, contract and heuristic tool. Dependency free!
 
+## TODO
+
+I plan to move this to my big monorepo, with the rest of my projects
+in there called `github.com/psyomn/ecophagy`, and eventually archive
+this.
+
 ## Usage
 
 For detailed usage take a look at `cynic/cynic.go`.
