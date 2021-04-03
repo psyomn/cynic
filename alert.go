@@ -48,11 +48,13 @@ type AlertMessage struct {
 func AlerterNew(waitTime int, alerter AlertFunc) Alerter {
 	var alerts []AlertMessage
 	ch := make(chan AlertMessage)
+	stop := make(chan int)
 	ticker := time.NewTicker(time.Second * time.Duration(waitTime))
 
 	return Alerter{
 		alerts:     alerts,
 		Ch:         ch,
+		stopCh:     stop,
 		waitTime:   waitTime,
 		waitTicker: ticker,
 		alerterFn:  alerter,

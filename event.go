@@ -25,18 +25,14 @@ import (
 	"time"
 )
 
-var hostVal = ""
-
-func init() {
-	{ // Hostname resolution
-		maybeHostVal, err := os.Hostname()
-		if err != nil {
-			log.Println("couldn't get hostname: ", err)
-			hostVal = "badhost"
-		} else {
-			hostVal = maybeHostVal
-		}
+func currentHost() string {
+	ret := "badhost"
+	if maybeHostVal, err := os.Hostname(); err != nil {
+		log.Println("couldn't get hostname: ", err)
+	} else {
+		ret = maybeHostVal
 	}
+	return ret
 }
 
 // HookParameters is any state that should be passed to the hook.
@@ -106,6 +102,12 @@ func EventNew(secs int) Event {
 		id:        id,
 		priority:  priority,
 		deleted:   false,
+
+		Label:   "",
+		planner: nil,
+		repo:    nil,
+		index:   0,
+		extra:   nil,
 	}
 }
 
@@ -249,6 +251,6 @@ func (s *Event) maybeAlert(shouldAlert bool, result interface{}) {
 	alerter.Ch <- AlertMessage{
 		Response:      result,
 		Now:           time.Now().Format(time.RFC3339),
-		CynicHostname: hostVal,
+		CynicHostname: currentHost(),
 	}
 }

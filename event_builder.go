@@ -42,6 +42,7 @@ func EventBuilderNew(events []Event) EventBuilder {
 		events:         events,
 		evenDistribute: false,
 		allRepeatable:  false,
+		distribution:   nil,
 	}
 }
 

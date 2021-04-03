@@ -616,11 +616,13 @@ func TestChainAddition(t *testing.T) {
 	hook := func(e *cynic.Event, r *bool) cynic.HookSignature {
 		return func(params *cynic.HookParameters) (bool, interface{}) {
 			if params == nil {
-				log.Fatal("hook params are nil")
+				t.Fatal("hook params are nil")
+				return true, 0
 			}
 
 			if params.Planner == nil {
-				log.Fatal("planner should not be nil")
+				t.Fatal("planner should not be nil")
+				return true, 0
 			}
 
 			if e != nil {

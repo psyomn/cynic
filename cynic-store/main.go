@@ -30,10 +30,13 @@ import (
 	"github.com/psyomn/cynic"
 )
 
-var cmdInFile = ""
+type session struct {
+	inFile string
+}
 
-func init() {
-	flag.StringVar(&cmdInFile, "input", cmdInFile, "the cynic db store to dump")
+func parseFlags(s *session) {
+	flag.StringVar(&s.inFile, "input", s.inFile, "the cynic db store to dump")
+	flag.Parse()
 }
 
 func usage() {
@@ -41,17 +44,18 @@ func usage() {
 }
 
 func main() {
-	flag.Parse()
+	sess := &session{}
+	parseFlags(sess)
 
-	if cmdInFile == "" {
+	if sess.inFile == "" {
 		usage()
 	}
 
 	var buff bytes.Buffer
 
-	dat, err := ioutil.ReadFile(cmdInFile)
+	dat, err := ioutil.ReadFile(sess.inFile)
 	if err != nil {
-		log.Fatal("problem opening file: ", cmdInFile)
+		log.Fatal("problem opening file:", sess.inFile, ":", err)
 		os.Exit(1)
 	}
 
@@ -61,9 +65,9 @@ func main() {
 
 	err = dec.Decode(&snapstore)
 	if err != nil {
-		log.Println("problem decoding store: ", cmdInFile, ", ", err)
+		log.Println("problem decoding store: ", sess.inFile, ":", err)
 		os.Exit(1)
 	}
 
-	fmt.Print(snapstore.String())
+	fmt.Println(snapstore.String())
 }
