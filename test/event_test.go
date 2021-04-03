@@ -110,7 +110,6 @@ func TestEventWithQueryNoRepo(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	repo := cynic.StatusServerNew("", "0", "/status/testeventwithquerynorepo")
 	ser := cynic.EventNew(1)
 	ser.AddHook(func(_ *cynic.HookParameters) (bool, interface{}) {
 		cli := &http.Client{}
@@ -127,7 +126,6 @@ func TestEventWithQueryNoRepo(t *testing.T) {
 
 		return false, 0
 	})
-	ser.SetDataRepo(&repo)
 	ser.Execute()
 
 	assert(t, ran)
